@@ -1,0 +1,111 @@
+name: Angular 20 compatibility probe (isolated)
+
+on:
+  push:
+    branches:
+      - chore/angular-20-probe-20261111
+    paths:
+      - '.github/angular-20-probe-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular20-isolated-probe-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  angular20:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    steps:
+      - name: Checkout validated Angular 19 migration branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Angular 20 compatible Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Guard and prepare Angular 20 dependencies (runner only)
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (p.devDependencies['@angular/core'] !== '19.2.25' ||
+              p.devDependencies['@angular/cli'] !== '19.2.27' ||
+              p.devDependencies['jest-preset-angular'] !== '14.5.5') {
+            throw new Error('Angular 19 validated dependency baseline not found');
+          }
+          const angular = ['animations','common','compiler','compiler-cli','core','forms',
+            'language-service','platform-browser','platform-browser-dynamic','router','cdk','material'];
+          for (const name of angular) {
+            const key = '@angular/' + name;
+            let seen = false;
+            for (const group of ['dependencies','devDependencies']) {
+              if (Object.hasOwn(p[group] ?? {}, key)) {
+                p[group][key] = name === 'material' || name === 'cdk' ? '^20.0.0' : '^20.3.0';
+                seen = true;
+              }
+            }
+            if (!seen) throw new Error('Expected Angular package missing: ' + key);
+          }
+          Object.assign(p.devDependencies, {
+            '@angular/cli': '^20.3.0',
+            '@angular-devkit/build-angular': '^20.3.0',
+            '@angular-builders/custom-webpack': '^20.0.0',
+            typescript: '~5.9.3',
+            'zone.js': '~0.15.1',
+            'jest-preset-angular': '14.6.2',
+          });
+          let count = 0;
+          for (const k of Object.keys(p.devDependencies)) {
+            if (k.startsWith('@angular-eslint/')) {
+              p.devDependencies[k] = '^20.0.0';
+              count++;
+            }
+          }
+          if (count !== 5) throw new Error('Unexpected Angular ESLint package count');
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 4) + '\n');
+          NODE
+
+      - name: Resolve Angular 20 graph without forcing peer dependencies
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Apply official Angular 20 CLI Core and Material schematics
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          CLI_TARGET="$(node -p "require('./node_modules/@angular/cli/package.json').version")"
+          CORE_TARGET="$(node -p "require('./node_modules/@angular/core/package.json').version")"
+          MATERIAL_TARGET="$(node -p "require('./node_modules/@angular/material/package.json').version")"
+          echo "Targets: CLI $CLI_TARGET; Core $CORE_TARGET; Material $MATERIAL_TARGET"
+          npx ng update @angular/cli --migrate-only --from 19.2.27 --to "$CLI_TARGET" --allow-dirty
+          npx ng update @angular/core --migrate-only --from 19.2.25 --to "$CORE_TARGET" --allow-dirty
+          npx ng update @angular/material --migrate-only --from 19.2.19 --to "$MATERIAL_TARGET" --allow-dirty
+          git diff --stat
+
+      - name: Compile renderer and Electron main process
+        run: npm run build:prod
+
+      - name: Install Electron runtime needed by Jest
+        run: node node_modules/electron/install.js
+
+      - name: Run all Jest unit tests
+        run: npm test
+
+      - name: Report constraints and changed files
+        if: always()
+        run: |
+          echo 'All Angular 20 migration files remain in this disposable runner.'
+          echo 'A passing probe does NOT mean native packaging or installation compatibility is proven.'
+          git status --short
