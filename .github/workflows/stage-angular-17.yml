@@ -1,0 +1,75 @@
+name: Stage Angular 17 migration (feature branch only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    # Stage-only flow; not a release or merge gate.
+    if: github.ref == 'refs/heads/chore/angular-17-migration-20261111'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout stage branch
+        uses: actions/checkout@v4
+
+      - name: Node runtime for Angular 17 migrations
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+
+      - name: Stage compatible Angular 17 manifest
+        run: node scripts/migrations/stage-angular-17.cjs
+
+      - name: Resolve fresh peer dependency graph in disposable runner
+        env:
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Apply official CLI, core and Material v17 schematics
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          npx ng update @angular/cli --migrate-only --from 16.2.10 --to 17.3.17 --allow-dirty
+          npx ng update @angular/core --migrate-only --from 16.2.12 --to 17.3.12 --allow-dirty
+          npx ng update @angular/material --migrate-only --from 16.2.12 --to 17.3.10 --allow-dirty
+          git diff --stat
+
+      - name: Compile renderer
+        run: npm run build:prod
+
+      - name: Install Electron binary needed by unit tests
+        run: node node_modules/electron/install.js
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Ensure only reviewed migration paths changed
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const changed = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean).sort();
+          const expected = ['angular.json', 'package-lock.json', 'package.json'];
+          if (JSON.stringify(changed) !== JSON.stringify(expected)) {
+            throw new Error('Unexpected migration paths: ' + JSON.stringify(changed));
+          }
+          console.log('Only the three expected files changed.');
+          NODE
+          git diff --check
+
+      - name: Report results (no automatic publication)
+        if: always()
+        run: |
+          echo 'The workflow is read-only by design. No merge, deployment or branch push is performed.'
+          echo 'An approved migration is staged only after further review of the changes.'
+          git status --short
