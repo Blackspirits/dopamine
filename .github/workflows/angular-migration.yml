@@ -1,0 +1,80 @@
+name: Angular migration verification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'angular.json'
+      - 'angular.webpack.js'
+      - 'tsconfig*.json'
+      - '.eslintrc.json'
+      - 'eslint.config.*'
+      - 'jest.config.*'
+      - 'jest.setup.*'
+      - 'src/**'
+      - 'main/**'
+      - '.github/workflows/angular-migration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular-migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  renderer-tests:
+    name: Renderer, lint and tests (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Environment
+        run: |
+          node --version
+          npm --version
+
+      - name: Install dependencies (existing project convention)
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Compile renderer and Electron main process
+        run: npm run build:prod
+
+  desktop-build:
+    name: Desktop compilation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Install dependencies (existing project convention)
+        run: npm install --no-audit --no-fund
+
+      - name: Compile renderer and Electron main process
+        run: npm run build:prod
