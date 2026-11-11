@@ -50,8 +50,10 @@ jobs:
       - name: Install reproducibly with normal postinstall scripts
         run: npm ci --no-audit --no-fund
 
-      - name: Confirm installed Angular versions
-        run: npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack typescript --depth=0
+      - name: Confirm installed Angular versions and reproducible manifest
+        run: |
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack typescript --depth=0
+          node -e "const m=require('./package.json');const l=require('./package-lock.json');if(m.devDependencies['@angular/core']!=='18.2.14'||m.devDependencies['@angular/cli']!=='18.2.21'||l.packages[''].devDependencies['@angular/core']!==m.devDependencies['@angular/core'])process.exit(1)"
 
       - name: Run full unit test suite
         run: npm test
