@@ -38,7 +38,8 @@ jobs:
           node --version
           npm --version
           rm -rf node_modules package-lock.json
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm install --ignore-scripts --no-audit --no-fund
+          npm dedupe --ignore-scripts --no-audit --no-fund
 
       - name: Reproducible clean install with native postinstall scripts
         run: npm ci --no-audit --no-fund
