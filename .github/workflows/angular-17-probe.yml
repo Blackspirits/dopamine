@@ -43,7 +43,8 @@ jobs:
             @angular/material@17 \
             @angular-eslint/schematics@17 \
             @angular-builders/custom-webpack@17 \
-            angular-split@17.2.0
+            angular-split@17.2.0 \
+            --allow-dirty
       - name: Show candidate modifications and installed versions
         if: always()
         run: |
