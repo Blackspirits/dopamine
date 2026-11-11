@@ -1,4 +1,5 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, ViewEncapsulation } from '@angular/core';
+import type { SimpleChanges } from '@angular/core';
 import { LyricsModel } from '../../../../../services/lyrics/lyrics-model';
 import { PlaybackService } from '../../../../../services/playback/playback.service';
 import { SettingsBase } from '../../../../../common/settings/settings.base';
