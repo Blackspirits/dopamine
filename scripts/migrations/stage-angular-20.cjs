@@ -32,6 +32,10 @@ for (const name of typeImportPaths) {
         throw new Error('Missing reviewed Angular 20 type-only import: ' + name);
     }
 }
+const visualizer = fs.readFileSync(path.join(root, 'src/app/services/playback/audio-visualizer.ts'), 'utf8');
+if (!visualizer.includes('private dataArray: Uint8Array<ArrayBuffer>;')) {
+    throw new Error('Missing Angular 20 TypeScript typed-array compatibility fix');
+}
 const names = [
     'animations', 'common', 'compiler', 'compiler-cli', 'core', 'forms',
     'language-service', 'platform-browser', 'platform-browser-dynamic',
