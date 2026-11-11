@@ -1,0 +1,167 @@
+name: Stage Angular 20 migration (validated feature branch only)
+
+on:
+  push:
+    branches:
+      - chore/angular-20-migration-20261111
+    paths:
+      - '.github/angular-20-stage-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage-angular20-feature-branch
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/chore/angular-20-migration-20261111'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout isolated migration branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node supported by Angular 20 and Electron
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Generate reviewed Angular 20 dependency graph
+        run: node scripts/migrations/stage-angular-20.cjs
+
+      - name: Resolve clean dependencies without forcing peers
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Apply official Angular 20 CLI Core and Material migrations
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          npx ng update @angular/cli --migrate-only --from 19.2.27 --to 20.3.42 --allow-dirty
+          npx ng update @angular/core --migrate-only --from 19.2.25 --to 20.3.35 --allow-dirty
+          npx ng update @angular/material --migrate-only --from 19.2.19 --to 20.2.14 --allow-dirty
+
+      - name: Verify clean reproducible lockfile
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build Electron main process and Angular renderer
+        run: npm run build:prod
+
+      - name: Install Electron executable for Jest imports
+        run: node node_modules/electron/install.js
+
+      - name: Run full unit test suite
+        run: npm test
+
+      - name: Verify EXACT generated files and versions
+        run: |
+          node <<'NODE'
+          const {execFileSync} = require('node:child_process');
+          const fs = require('node:fs');
+          const expected = [
+            'angular.json',
+            'package-lock.json',
+            'package.json',
+            'src/app/services/appearance/appearance.service.spec.ts',
+            'src/app/services/appearance/appearance.service.ts',
+            'src/css/variables.scss',
+          ].sort();
+          const actual = execFileSync('git', ['diff', '--name-only'], {encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+          if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+            throw new Error('Unexpected Angular 20 generated paths: ' + JSON.stringify(actual));
+          }
+          if (actual.some(p => !fs.statSync(p).isFile())) throw new Error('Unexpected generated file kind');
+          const pkg = require('./package.json');
+          const lock = require('./package-lock.json');
+          if (pkg.devDependencies['@angular/core'] !== '20.3.35' ||
+              pkg.devDependencies['@angular/cli'] !== '20.3.42' ||
+              pkg.dependencies['@angular/material'] !== '20.2.14' ||
+              lock.packages[''].devDependencies['@angular/core'] !== '20.3.35') {
+            throw new Error('Angular 20 dependency versions unexpected');
+          }
+          NODE
+          git diff --check
+
+      - name: Transfer tested generated files to write-isolated job
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular20-generated
+          path: |
+            angular.json
+            package-lock.json
+            package.json
+            src/app/services/appearance/appearance.service.spec.ts
+            src/app/services/appearance/appearance.service.ts
+            src/css/variables.scss
+          if-no-files-found: error
+          retention-days: 7
+
+  commit:
+    name: Publish tested files ONLY to Angular 20 feature branch
+    needs: migrate
+    if: github.ref == 'refs/heads/chore/angular-20-migration-20261111'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout isolated target branch without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Restore migration artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: angular20-generated
+          path: .
+
+      - name: Guard artifact paths and target versions before commit
+        run: |
+          node <<'NODE'
+          const {execFileSync} = require('node:child_process');
+          const expected = [
+            'angular.json',
+            'package-lock.json',
+            'package.json',
+            'src/app/services/appearance/appearance.service.spec.ts',
+            'src/app/services/appearance/appearance.service.ts',
+            'src/css/variables.scss',
+          ].sort();
+          const actual = execFileSync('git', ['diff', '--name-only'], {encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+          if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+            throw new Error('Unexpected artifact diff: ' + JSON.stringify(actual));
+          }
+          const pkg = require('./package.json');
+          if (pkg.devDependencies['@angular/core'] !== '20.3.35' ||
+              pkg.devDependencies['@angular/cli'] !== '20.3.42') {
+            throw new Error('Unexpected staged Angular 20 versions');
+          }
+          NODE
+          git diff --check
+
+      - name: Commit and fast-forward ONLY isolated feature branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add -- angular.json package.json package-lock.json src/app/services/appearance/appearance.service.spec.ts src/app/services/appearance/appearance.service.ts src/css/variables.scss
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: migrate Angular 19 to 20 using official schematics'
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin HEAD:refs/heads/chore/angular-20-migration-20261111
