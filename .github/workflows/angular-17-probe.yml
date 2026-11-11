@@ -85,6 +85,9 @@ jobs:
       - name: Compile renderer after official migrations
         run: npm run build:prod
 
+      - name: Install Electron binary required by Jest imports
+        run: node node_modules/electron/install.js
+
       - name: Run unit tests after official migrations
         run: npm test
 
