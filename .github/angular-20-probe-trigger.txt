@@ -1,0 +1,4 @@
+Trigger isolated Angular 20 compatibility probe following successful Angular 19 cross-platform verification.
+Prerequisite: https://github.com/Blackspirits/dopamine/actions/runs/43079757211 (Linux, Windows and macOS jobs all SUCCESS).
+Reference baseline: f67a5c3900e22242c268c623912873779c74cfd9 (Angular 19).
+No automatic code publication, no PR, no merge.
