@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/angular-20-probe-trigger.txt'
       - '.github/workflows/angular-20-probe.yml'
+      - 'src/app/services/playback/audio-visualizer.ts'
       - 'src/app/ui/components/collection/album-browser/album-browser.component.ts'
       - 'src/app/ui/components/collection/collection-playlists/playlist-browser/playlist-browser.component.ts'
       - 'src/app/ui/components/now-playing/now-playing-lyrics/rich-lyrics/rich-lyrics.component.ts'
