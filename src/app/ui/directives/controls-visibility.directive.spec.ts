@@ -8,11 +8,13 @@ import { ControlsVisibilityDirective, ControlTooltipDirective } from './controls
 
 @Component({
     selector: 'app-test-controls',
+    standalone: false,
     template: '<button matTooltip="Pause">Pause</button>',
 })
 class TestControlsComponent {}
 
 @Component({
+    standalone: false,
     template: `
         <app-test-controls [appControlsHidden]="hidden"></app-test-controls>
         <button matTooltip="Unrelated" [matTooltipDisabled]="true">Unrelated</button>
