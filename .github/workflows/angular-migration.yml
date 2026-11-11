@@ -44,8 +44,8 @@ jobs:
           node --version
           npm --version
 
-      - name: Install dependencies (existing project convention)
-        run: npm install --no-audit --no-fund
+      - name: Install reproducibly from lockfile
+        run: npm ci --no-audit --no-fund
 
       - name: Run unit tests
         run: npm test
@@ -73,8 +73,8 @@ jobs:
         with:
           node-version: '22.22.3'
 
-      - name: Install dependencies (existing project convention)
-        run: npm install --no-audit --no-fund
+      - name: Install reproducibly from lockfile
+        run: npm ci --no-audit --no-fund
 
       - name: Compile renderer and Electron main process
         run: npm run build:prod
