@@ -17,6 +17,10 @@ jobs:
     env:
       CI: 'true'
       NG_CLI_ANALYTICS: 'false'
+      # Temporary tooling-only exception: @electron/rebuild requires Node >=22.12;
+      # Angular 17 schematics require Node 20. Do not apply to real builds.
+      npm_config_engine_strict: 'false'
+      npm_config_ignore_scripts: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,8 +29,8 @@ jobs:
           cache: npm
       - name: Show runtime versions
         run: node --version && npm --version
-      - name: Install unmodified baseline
-        run: npm ci
+      - name: Install tooling only; skip Electron native postinstall scripts
+        run: npm ci --ignore-scripts
       - name: Run official Angular 16 -> 17 core and CLI migration
         id: migrate
         continue-on-error: true
