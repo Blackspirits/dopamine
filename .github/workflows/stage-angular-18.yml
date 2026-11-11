@@ -1,0 +1,158 @@
+name: Stage Angular 18 migration (feature branch only)
+
+on:
+  push:
+    branches:
+      - chore/angular-18-migration-20261111
+    paths:
+      - '.github/workflows/stage-angular-18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage-angular18-branch
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/chore/angular-18-migration-20261111'
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout migration branch without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node compatible with Angular 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+
+      - name: Prepare Angular 18 manifest
+        run: node scripts/migrations/stage-angular-18.cjs
+
+      - name: Resolve fresh dependencies without forcing peers
+        env:
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Apply all official Angular 18 migrations
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          npx ng update @angular/cli --migrate-only --from 17.3.17 --to 18.2.21 --allow-dirty
+          npx ng update @angular/core --migrate-only --from 17.3.12 --to 18.2.14 --allow-dirty
+          npx ng update @angular/material --migrate-only --from 17.3.10 --to 18.2.14 --allow-dirty
+
+      - name: Isolate known Electron / Node third-party declaration conflict
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'tsconfig-serve.json';
+          const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+          value.compilerOptions.skipLibCheck = true;
+          fs.writeFileSync(file, JSON.stringify(value, null, 4) + '\n');
+          NODE
+
+      - name: Print generated application migration diffs for review
+        run: git diff -- src/app/app.module.ts src/css/angular-material-theming.scss tsconfig-serve.json
+
+      - name: Compile renderer and Electron main process
+        run: npm run build:prod
+
+      - name: Install Electron runtime for Jest imports
+        run: node node_modules/electron/install.js
+
+      - name: Execute unit tests
+        run: npm test
+
+      - name: Verify exact changed paths and dependency versions
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const changed = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean).sort();
+          const allowed = ['package-lock.json', 'package.json',
+            'src/app/app.module.ts', 'src/css/angular-material-theming.scss',
+            'tsconfig-serve.json'];
+          if (JSON.stringify(changed) !== JSON.stringify(allowed)) {
+            throw new Error('Unexpected Angular 18 generated files: ' + JSON.stringify(changed));
+          }
+          const pkg = require('./package.json');
+          if (pkg.devDependencies['@angular/core'] !== '18.2.14' ||
+              pkg.devDependencies['@angular/cli'] !== '18.2.21') {
+            throw new Error('Unexpected Angular 18 versions');
+          }
+          NODE
+          git diff --check
+
+      - name: Transfer only validated migration files to isolated write job
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular18-generated
+          path: |
+            package.json
+            package-lock.json
+            src/app/app.module.ts
+            src/css/angular-material-theming.scss
+            tsconfig-serve.json
+          if-no-files-found: error
+          retention-days: 7
+
+  commit:
+    needs: migrate
+    if: github.ref == 'refs/heads/chore/angular-18-migration-20261111'
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout target branch without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Restore tested files
+        uses: actions/download-artifact@v4
+        with:
+          name: angular18-generated
+          path: .
+
+      - name: Verify and publish only to migration feature branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const changed = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' })
+            .trim().split('\n').filter(Boolean).sort();
+          const allowed = ['package-lock.json', 'package.json',
+            'src/app/app.module.ts', 'src/css/angular-material-theming.scss',
+            'tsconfig-serve.json'];
+          if (JSON.stringify(changed) !== JSON.stringify(allowed)) {
+            throw new Error('Unexpected downloaded artifact paths: ' + JSON.stringify(changed));
+          }
+          const pkg = require('./package.json');
+          if (pkg.devDependencies['@angular/core'] !== '18.2.14' ||
+              pkg.devDependencies['@angular/cli'] !== '18.2.21') {
+            throw new Error('Unexpected Angular 18 manifest');
+          }
+          NODE
+          git add -- package.json package-lock.json src/app/app.module.ts src/css/angular-material-theming.scss tsconfig-serve.json
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: migrate Angular 17 to 18 with official schematics'
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin HEAD:refs/heads/chore/angular-18-migration-20261111
