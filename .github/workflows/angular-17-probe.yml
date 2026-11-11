@@ -1,0 +1,92 @@
+name: Angular 17 compatibility probe (isolated)
+
+on:
+  push:
+    branches:
+      - chore/angular-22-migration-preflight-20261111
+    paths:
+      - '.github/workflows/angular-17-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  angular17:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+
+      - name: Use officially supported Angular 17 Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+
+      - name: Report initial state
+        run: |
+          node --version
+          npm --version
+          git rev-parse HEAD
+
+      - name: Prepare a complete Angular 17 dependency group in runner only
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const framework = ['common','compiler','compiler-cli','core','forms','language-service','platform-browser','platform-browser-dynamic','router'];
+          for (const name of framework) {
+            const k = '@angular/' + name;
+            for (const group of ['dependencies', 'devDependencies']) {
+              if (Object.hasOwn(p[group] ?? {}, k)) p[group][k] = '17.3.12';
+            }
+          }
+          p.dependencies['@angular/animations'] = '17.3.12';
+          for (const name of ['cdk','material']) p.dependencies['@angular/' + name] = '17.3.10';
+          Object.assign(p.devDependencies, {
+            '@angular/cli': '17.3.17',
+            '@angular-devkit/build-angular': '17.3.17',
+            '@angular-builders/custom-webpack': '^17.0.0',
+            'typescript': '~5.4.5',
+            'zone.js': '~0.14.0',
+            'jest-preset-angular': '13.1.6',
+          });
+          for (const k of Object.keys(p.devDependencies)) {
+            if (k.startsWith('@angular-eslint/')) p.devDependencies[k] = '^17.0.0';
+          }
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          console.log('Prepared Angular 17 dependency graph; no --force, no legacy-peer-deps.');
+          NODE
+
+      - name: Resolve all peer dependencies (no postinstall / native scripts)
+        env:
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Run official Angular 17 migrations without force
+        env:
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          npx ng update @angular/cli --migrate-only --from 16.2.10 --to 17.3.17 --allow-dirty
+          npx ng update @angular/core --migrate-only --from 16.2.12 --to 17.3.12 --allow-dirty
+          npx ng update @angular/material --migrate-only --from 16.2.12 --to 17.3.10 --allow-dirty
+          git diff --stat
+
+      - name: Compile renderer after official migrations
+        run: npm run build:prod
+
+      - name: Run unit tests after official migrations
+        run: npm test
+
+      - name: Explain probe limits
+        if: always()
+        run: |
+          echo 'All dependency and migration changes were made only in this disposable runner.'
+          echo 'Node engine checks and postinstall scripts were relaxed ONLY for graph/migration probing.'
+          echo 'This is not a valid native Electron packaging test, release verification or approval to merge.'
+          git status --short
