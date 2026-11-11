@@ -31,10 +31,19 @@ jobs:
         run: node --version && npm --version
       - name: Install tooling only; skip Electron native postinstall scripts
         run: npm ci --ignore-scripts
-      - name: Run official Angular 16 -> 17 core and CLI migration
+      - name: Align Jest peer range with Angular 17 (tooling only)
+        run: npm install --save-dev jest-preset-angular@13.1.6
+      - name: Run coordinated Angular 16 -> 17 migrations
         id: migrate
         continue-on-error: true
-        run: npx ng update @angular/cli@17 @angular/core@17
+        run: |
+          npx ng update \
+            @angular/cli@17 \
+            @angular/core@17 \
+            @angular/material@17 \
+            @angular-eslint/schematics@17 \
+            @angular-builders/custom-webpack@17 \
+            angular-split@17.2.0
       - name: Show candidate modifications and installed versions
         if: always()
         run: |
