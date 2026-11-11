@@ -6,7 +6,7 @@ import { PlaybackService } from './playback.service';
 
 @Injectable()
 export class AudioVisualizer {
-    private dataArray: Uint8Array;
+    private dataArray: Uint8Array<ArrayBuffer>;
     private canvas: HTMLCanvasElement;
     private canvasContext: CanvasRenderingContext2D;
     private isStopped: boolean;
