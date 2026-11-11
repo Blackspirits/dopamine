@@ -1,0 +1,75 @@
+name: Diagnose reproducible Angular 18 dependency lock (read only)
+
+on:
+  push:
+    branches:
+      - chore/angular-18-migration-20261111
+    paths:
+      - '.github/workflows/angular-18-lock-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - name: Fresh dependency install without postinstall
+        run: |
+          node --version
+          npm --version
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+      - name: Print lockfile dependency locations
+        run: |
+          node <<'NODE'
+          const p = require('./package-lock.json').packages;
+          for (const key of Object.keys(p).filter(x => /(^|\/)(chokidar|readdirp|glob-parent|picomatch)$/.test(x))) {
+            console.log(key, p[key].version, 'dependencies=', JSON.stringify(p[key].dependencies || {}));
+          }
+          NODE
+      - name: Check npm ci with original lock
+        id: first
+        continue-on-error: true
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Attempt npm dedupe without force
+        if: steps.first.outcome == 'failure'
+        run: npm dedupe --ignore-scripts --no-audit --no-fund
+      - name: Check npm ci after dedupe
+        id: dedupe
+        if: steps.first.outcome == 'failure'
+        continue-on-error: true
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Attempt clean nested dependency strategy without force
+        if: steps.first.outcome == 'failure' && steps.dedupe.outcome == 'failure'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --install-strategy=nested --ignore-scripts --no-audit --no-fund
+      - name: Check npm ci with nested strategy
+        id: nested
+        if: steps.first.outcome == 'failure' && steps.dedupe.outcome == 'failure'
+        continue-on-error: true
+        run: npm ci --install-strategy=nested --ignore-scripts --no-audit --no-fund
+      - name: Summarize only verified install strategies
+        if: always()
+        env:
+          FIRST: ${{ steps.first.outcome }}
+          DEDUPE: ${{ steps.dedupe.outcome }}
+          NESTED: ${{ steps.nested.outcome }}
+        run: |
+          echo "Fresh npm ci: $FIRST"
+          echo "Dedupe + npm ci: $DEDUPE"
+          echo "Nested strategy + npm ci: $NESTED"
+          if [ "$FIRST" != success ] && [ "$DEDUPE" != success ] && [ "$NESTED" != success ]; then
+            echo 'No reproducible strategy passed. Do not publish lockfile.' >&2
+            exit 1
+          fi
+          echo 'Any passing strategy must still be validated with native postinstall and full tests.'
