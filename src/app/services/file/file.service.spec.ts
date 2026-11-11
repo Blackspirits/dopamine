@@ -240,7 +240,8 @@ describe('FileService', () => {
             createService();
 
             // Act
-            argumentsReceivedMock.next(undefined);
+            // Deliberately simulate an invalid runtime IPC payload beyond the typed stream contract.
+            argumentsReceivedMock.next(undefined as unknown as string[]);
             await flushPromises();
 
             // Assert
