@@ -361,7 +361,8 @@ export function settingsInitializerFactory(settings: SettingsBase) {
     };
 }
 
-@NgModule({ declarations: [
+@NgModule({
+    declarations: [
         AppComponent,
         WebviewDirective,
         WindowDraggableDirective,
@@ -496,7 +497,8 @@ export function settingsInitializerFactory(settings: SettingsBase) {
         IterableMenuComponent,
         EditArtistDialogComponent,
     ],
-    bootstrap: [AppComponent], imports: [BrowserAnimationsModule,
+    imports: [
+        BrowserAnimationsModule,
         BrowserModule,
         MatSidenavModule,
         MatProgressSpinnerModule,
@@ -522,7 +524,9 @@ export function settingsInitializerFactory(settings: SettingsBase) {
                 provide: TranslateLoader,
                 useExisting: UserTranslations,
             },
-        })], providers: [
+        }),
+    ],
+    providers: [
         UserTranslations,
         {
             provide: APP_INITIALIZER,
@@ -662,5 +666,7 @@ export function settingsInitializerFactory(settings: SettingsBase) {
             useClass: GlobalErrorHandler,
         },
         provideHttpClient(withInterceptorsFromDi()),
-    ] })
+    ],
+    bootstrap: [AppComponent],
+})
 export class AppModule {}
