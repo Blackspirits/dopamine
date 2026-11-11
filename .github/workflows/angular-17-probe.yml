@@ -72,6 +72,8 @@ jobs:
 
       - name: Run official Angular 17 migrations without force
         env:
+          # Angular CLI 17 would otherwise fetch today's latest CLI (22) and fail on Node 20.
+          NG_DISABLE_VERSION_CHECK: '1'
           npm_config_engine_strict: 'false'
           npm_config_ignore_scripts: 'true'
         run: |
