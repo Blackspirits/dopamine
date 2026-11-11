@@ -16,7 +16,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSortModule } from '@angular/material/sort';
 import { MAT_TOOLTIP_DEFAULT_OPTIONS, MatTooltipDefaultOptions, MatTooltipModule } from '@angular/material/tooltip';
-import { BrowserModule, HammerModule } from '@angular/platform-browser';
+import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AngularSplitModule } from 'angular-split';
@@ -514,7 +514,6 @@ export function settingsInitializerFactory(settings: SettingsBase) {
         MatBottomSheetModule,
         DragDropModule,
         OverlayModule,
-        HammerModule,
         FormsModule,
         ReactiveFormsModule,
         HttpClientModule,
