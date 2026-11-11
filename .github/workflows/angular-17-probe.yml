@@ -64,6 +64,9 @@ jobs:
           npm_config_engine_strict: 'false'
           npm_config_ignore_scripts: 'true'
         run: |
+          # Dispose of the Angular 16 installed tree/lockfile in this runner only.
+          # A clean graph prevents npm from retaining incompatible v16 lock entries.
+          rm -rf node_modules package-lock.json
           npm install --ignore-scripts --no-audit --no-fund
           npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
 
