@@ -5,6 +5,7 @@ on:
       - chore/angular-17-probe-20261111
     paths:
       - '.github/workflows/angular-17-probe.yml'
+      - 'src/**'
   workflow_dispatch:
 
 permissions:

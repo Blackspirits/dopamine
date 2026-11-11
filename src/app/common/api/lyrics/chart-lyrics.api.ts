@@ -5,6 +5,7 @@ import { ILyricsApi } from './i-lyrics.api';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { XMLParser } from 'fast-xml-parser';
+import { firstValueFrom } from 'rxjs';
 import { Lyrics } from './lyrics';
 
 @Injectable()
@@ -18,7 +19,7 @@ export class ChartLyricsApi implements ILyricsApi {
     public async getLyricsAsync(artist: string, title: string): Promise<Lyrics> {
         const url: string =
             `http://api.chartlyrics.com/apiv1.asmx/SearchLyricDirect?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}`;
-        const response: string = await this.httpClient.get(url, { responseType: 'text' }).toPromise();
+        const response: string = await firstValueFrom(this.httpClient.get(url, { responseType: 'text' }));
         const parser: XMLParser = new XMLParser();
         const jsonResponse: any = parser.parse(response);
 

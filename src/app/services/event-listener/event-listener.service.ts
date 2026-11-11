@@ -11,6 +11,9 @@ export class EventListenerService implements EventListenerServiceBase {
 
     public listenToEvents(): void {
         ipcRenderer.on('arguments-received', (event, argv: string[] | undefined) => {
+            if (argv === undefined) {
+                return;
+            }
             this.argumentsReceived.next(argv);
         });
 
