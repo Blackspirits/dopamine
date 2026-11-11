@@ -1,0 +1,54 @@
+name: Angular 17 non-destructive migration probe
+on:
+  push:
+    branches:
+      - chore/angular-17-probe-20261111
+    paths:
+      - '.github/workflows/angular-17-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NG_CLI_ANALYTICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+          cache: npm
+      - name: Show runtime versions
+        run: node --version && npm --version
+      - name: Install unmodified baseline
+        run: npm ci
+      - name: Run official Angular 16 -> 17 core and CLI migration
+        id: migrate
+        continue-on-error: true
+        run: npx ng update @angular/cli@17 @angular/core@17
+      - name: Show candidate modifications and installed versions
+        if: always()
+        run: |
+          git status --short
+          git diff --stat
+          node -e 'let p=require("./package.json"); console.log(JSON.stringify({angular:p.devDependencies["@angular/core"],cli:p.devDependencies["@angular/cli"],typescript:p.devDependencies.typescript,customWebpack:p.devDependencies["@angular-builders/custom-webpack"],material:p.dependencies["@angular/material"],split:p.dependencies["angular-split"],rxjs:p.devDependencies.rxjs},null,2))'
+          git diff --binary > angular-17-migration.patch
+      - name: Upload generated patch for inspection (not committed)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular-17-probe-diff
+          path: angular-17-migration.patch
+          if-no-files-found: error
+      - name: Report migration result
+        if: always()
+        env:
+          MIGRATE_OUTCOME: ${{ steps.migrate.outcome }}
+        run: |
+          echo "Angular 17 core and CLI migration outcome: $MIGRATE_OUTCOME"
+          test "$MIGRATE_OUTCOME" = success
