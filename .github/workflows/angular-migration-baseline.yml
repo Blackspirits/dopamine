@@ -1,0 +1,66 @@
+name: Angular migration baseline
+on:
+  push:
+    branches:
+      - chore/angular-22-migration-preflight-20261111
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'angular.json'
+      - 'angular.webpack.js'
+      - 'tsconfig*.json'
+      - 'src/**'
+      - 'jest*.js'
+      - '.eslintrc.json'
+      - '.github/workflows/angular-migration-baseline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular-migration-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-baseline:
+    name: Linux baseline - install, unit tests, lint, renderer build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+      - name: Show toolchain versions
+        run: |
+          node --version
+          npm --version
+      - name: Install reproducibly (do not modify lockfile)
+        run: npm ci
+      - name: Unit tests
+        id: unit
+        continue-on-error: true
+        run: npm test
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+      - name: Angular production renderer build
+        id: build
+        continue-on-error: true
+        run: npm run build:prod
+      - name: Assert baseline gates
+        if: always()
+        env:
+          UNIT: ${{ steps.unit.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        run: |
+          echo "Unit tests: $UNIT"
+          echo "Lint: $LINT"
+          echo "Build: $BUILD"
+          test "$UNIT" = success
+          test "$LINT" = success
+          test "$BUILD" = success
