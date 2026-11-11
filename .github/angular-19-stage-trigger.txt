@@ -1,0 +1,4 @@
+Trigger Angular 19 migration staging on the isolated feature branch.
+Verified prerequisite: Angular 19 isolated probe #43077677068 = SUCCESS at commit 190642f80bed603c3355405d3c41eacd72222fcc.
+Target: Angular core 19.2.25, CLI 19.2.27, Material/CDK 19.2.19.
+Scope: generated migration source and dependency manifests only. No PR, no merge.
