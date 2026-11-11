@@ -1,7 +1,7 @@
 # Dopamine: Angular 16 → 22 migration (preflight, not implemented)
 
-> Status: **PLAN ONLY**. Source baseline: `digimezzo/dopamine@bf7643d3aba3fdeafe921af4b4ee9cd40b2dc318` (2026-11-09).
-> Do not merge this branch as an Angular upgrade. No dependency changes or generated migrations have been applied or tested.
+> Status: **PREPARATION AND BASELINE VALIDATION**. Source baseline: `digimezzo/dopamine@bf7643d3aba3fdeafe921af4b4ee9cd40b2dc318` (2026-11-09).
+> Do not merge this branch as an Angular upgrade. No Angular dependency changes or generated migrations have been applied. The separate, unused \`HammerModule\` import has been removed and validated with unit tests and renderer build.
 
 ## Goal and non-goals
 
@@ -18,6 +18,20 @@ Reach a supported Angular 22 patch release with the Dopamine desktop experience 
 - `angular-split` 14.1.0; latest published package located during preflight is 20.0.0. **Angular 22 peer compatibility is not established.** Review its API/peer requirements instead of forcing installation.
 - `package-lock.json` is tracked; installation runs `electron-builder install-app-deps` and project-specific native module patch scripts.
 - Existing GitHub workflows use Node.js `22.x`, without enforcing Angular 22's minimum patch version.
+
+## Execution evidence (2026-11-11)
+
+- [Baseline Actions run #42964429202](https://github.com/Blackspirits/dopamine/actions/runs/42964429202), Node.js 22.22.3, including the removal of `HammerModule`:
+  - `npm ci` **PASS** (lockfile not modified)
+  - `npm test` **PASS**: 312/312 suites, 3147 tests passed, 20 tests marked TODO
+  - `npm run build:prod` **PASS**
+  - `npm run lint` **FAIL**: 111 errors, 38 warnings across existing source files. These were not fixed or suppressed. The only issue reported in `app.module.ts` is an unrelated unused `PlaylistSessionService` import. Do not present the overall CI workflow as green.
+- [Angular 17 isolated migration attempt #42964805870](https://github.com/Blackspirits/dopamine/actions/runs/42964805870) using Node.js 20.19.1 failed in `npm ci`: transitive `@electron/rebuild@4.2.1` declares `node >=22.12.0`, conflicting with official Angular 17 Node.js 20 support. This is a **toolchain conflict**, not an Angular application regression.
+- [Angular 17 schematics probe #42964969886](https://github.com/Blackspirits/dopamine/actions/runs/42964969886) temporarily disabled npm engine enforcement and all install scripts **only in the disposable runner** to permit Angular 17 tooling to load. The actual `ng update` was blocked by peer dependencies: `jest-preset-angular@13.1.1` requires `@angular-devkit/build-angular <17`; `@angular-eslint/schematics@16.3.1` requires CLI <17. **No project files were migrated**. Do not use `--force` to bypass these.
+- `jest-preset-angular@13.1.6` expands compatibility to Angular 17; updating Jest and Angular ESLint together is a prerequisite.
+- `angular-split@20.0.0` peers require `@angular/core >=19` and `rxjs >=7`; the current `rxjs@6.6.3` must be upgraded when adopting this version of angular-split.
+
+Note: Angular 16 does **not officially support Node 22**, although the project's existing Node 22-based builds and our baseline build work. For intermediate migrations, isolate native Electron dependencies or use an appropriate container/toolchain; a passing npm install under a temporarily relaxed engine check is not a production validation.
 
 ## Version / runtime checkpoints
 
