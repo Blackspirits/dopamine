@@ -82,6 +82,17 @@ jobs:
           npx ng update @angular/material --migrate-only --from 17.3.10 --to "$MATERIAL_TARGET" --allow-dirty
           git diff --stat
 
+      - name: Work around Electron / Node declaration collision in main-process tsconfig
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'tsconfig-serve.json';
+          const p = JSON.parse(fs.readFileSync(file, 'utf8'));
+          p.compilerOptions.skipLibCheck = true;
+          fs.writeFileSync(file, JSON.stringify(p, null, 4) + '\n');
+          console.log('skipLibCheck enabled only for Electron main-process third-party .d.ts files.');
+          NODE
+
       - name: Compile renderer and Electron main process
         run: npm run build:prod
 
