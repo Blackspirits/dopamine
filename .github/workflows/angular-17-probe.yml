@@ -45,6 +45,34 @@ jobs:
             @angular-builders/custom-webpack@17 \
             angular-split@17.2.0 \
             --allow-dirty
+      # The migration schematics run with Node 20 tooling only. Test the
+      # generated workspace with the same Node 22 runtime used by upstream CI.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+      - name: Install migrated workspace with native scripts
+        id: fullinstall
+        continue-on-error: true
+        env:
+          npm_config_engine_strict: 'true'
+          npm_config_ignore_scripts: 'false'
+        run: npm ci
+      - name: Run Angular 17 unit tests
+        id: unit17
+        if: steps.fullinstall.outcome == 'success'
+        continue-on-error: true
+        run: npm test
+      - name: Build Angular 17 production renderer
+        id: build17
+        if: steps.fullinstall.outcome == 'success'
+        continue-on-error: true
+        run: npm run build:prod
+      - name: Measure Angular 17 lint debt (baseline already fails)
+        id: lint17
+        if: steps.fullinstall.outcome == 'success'
+        continue-on-error: true
+        run: npm run lint
       - name: Show candidate modifications and installed versions
         if: always()
         run: |
@@ -63,6 +91,17 @@ jobs:
         if: always()
         env:
           MIGRATE_OUTCOME: ${{ steps.migrate.outcome }}
+          FULL_INSTALL: ${{ steps.fullinstall.outcome }}
+          UNIT: ${{ steps.unit17.outcome }}
+          BUILD: ${{ steps.build17.outcome }}
+          LINT: ${{ steps.lint17.outcome }}
         run: |
-          echo "Angular 17 core and CLI migration outcome: $MIGRATE_OUTCOME"
+          echo "Angular 17 migration: $MIGRATE_OUTCOME"
+          echo "Angular 17 full install: $FULL_INSTALL"
+          echo "Angular 17 tests: $UNIT"
+          echo "Angular 17 build: $BUILD"
+          echo "Angular 17 lint (informational: prior baseline red): $LINT"
           test "$MIGRATE_OUTCOME" = success
+          test "$FULL_INSTALL" = success
+          test "$UNIT" = success
+          test "$BUILD" = success
