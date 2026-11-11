@@ -30,6 +30,12 @@ Reach a supported Angular 22 patch release with the Dopamine desktop experience 
 - [Angular 17 schematics probe #42964969886](https://github.com/Blackspirits/dopamine/actions/runs/42964969886) temporarily disabled npm engine enforcement and all install scripts **only in the disposable runner** to permit Angular 17 tooling to load. The actual `ng update` was blocked by peer dependencies: `jest-preset-angular@13.1.1` requires `@angular-devkit/build-angular <17`; `@angular-eslint/schematics@16.3.1` requires CLI <17. **No project files were migrated**. Do not use `--force` to bypass these.
 - `jest-preset-angular@13.1.6` expands compatibility to Angular 17; updating Jest and Angular ESLint together is a prerequisite.
 - `angular-split@20.0.0` peers require `@angular/core >=19` and `rxjs >=7`; the current `rxjs@6.6.3` must be upgraded when adopting this version of angular-split.
+- [Successful isolated Angular 17 compatibility probe #42979889174](https://github.com/Blackspirits/dopamine/actions/runs/42979889174), Node 20.19.1, without `--force` or `--legacy-peer-deps`:
+  - Clean Angular 17 peer graph **PASS**: core 17.3.12, CLI 17.3.17, Material 17.3.10, custom-webpack 17.0.2, Angular ESLint 17.5.3, TypeScript 5.4.5.
+  - Official CLI, Core and Material 17 migrations **PASS**. The generated source changes affect `angular.json`, `package.json` and `package-lock.json` only.
+  - `npm run build:prod` **PASS**, all 312 Jest suites **PASS**, 3147 tests passed, 20 TODO.
+  - Because Angular 17 requires Node 18/20 while the transitive `@electron/rebuild@4.2.1` requires Node >=22.12.0, the probe temporarily relaxed npm engine enforcement and disabled install scripts. It installed the Electron binary explicitly before Jest. **Not a native installation or release compatibility proof.**
+- A separate branch [`chore/angular-17-migration-20261111`](https://github.com/Blackspirits/dopamine/tree/chore/angular-17-migration-20261111) stages the tested generated changes with isolated read/write workflow jobs. Its results must be checked before claiming the files were committed.
 
 Note: Angular 16 does **not officially support Node 22**, although the project's existing Node 22-based builds and our baseline build work. For intermediate migrations, isolate native Electron dependencies or use an appropriate container/toolchain; a passing npm install under a temporarily relaxed engine check is not a production validation.
 
