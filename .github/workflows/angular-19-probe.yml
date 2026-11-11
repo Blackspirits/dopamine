@@ -6,6 +6,7 @@ on:
       - chore/angular-19-probe-20261111
     paths:
       - '.github/workflows/angular-19-probe.yml'
+      - 'src/app/ui/directives/controls-visibility.directive.spec.ts'
   workflow_dispatch:
 
 permissions:
