@@ -1,7 +1,7 @@
 # Dopamine: Angular 16 → 22 migration (preflight, not implemented)
 
 > Status: **PREPARATION AND BASELINE VALIDATION**. Source baseline: `digimezzo/dopamine@bf7643d3aba3fdeafe921af4b4ee9cd40b2dc318` (2026-11-09).
-> Do not merge this branch as an Angular upgrade. No Angular dependency changes or generated migrations have been applied. The separate, unused \`HammerModule\` import has been removed and validated with unit tests and renderer build.
+> Do not merge this branch as an Angular upgrade. No Angular dependency changes or generated migrations have been applied. The unused `HammerModule` import and NgModule entry have been removed and validated with unit tests and renderer build.
 
 ## Goal and non-goals
 
@@ -14,7 +14,7 @@ Reach a supported Angular 22 patch release with the Dopamine desktop experience 
 - `@angular-builders/custom-webpack` 16.x, custom `browser` and `dev-server` builders in `angular.json` with `angular.webpack.js` (Node/Electron externals and WASM rule).
 - `@angular-eslint/*` 16.x, ESLint 8 and `.eslintrc.json`.
 - `jest-preset-angular` 13.1.1; `src/test.ts` imports the removed `jest-preset-angular/setup-jest`.
-- `src/app/app.module.ts` imports and registers `HammerModule` (removed in Angular 22).
+- The baseline `src/app/app.module.ts` imported and registered `HammerModule` (removed in Angular 22); **both references have now been removed on this branch**.
 - `angular-split` 14.1.0; latest published package located during preflight is 20.0.0. **Angular 22 peer compatibility is not established.** Review its API/peer requirements instead of forcing installation.
 - `package-lock.json` is tracked; installation runs `electron-builder install-app-deps` and project-specific native module patch scripts.
 - Existing GitHub workflows use Node.js `22.x`, without enforcing Angular 22's minimum patch version.
@@ -50,7 +50,7 @@ Angular 22 is also compatible with RxJS 6.5.3+ or 7.4+, but keeping RxJS 6 indef
 
 1. Establish an *actual* baseline in an isolated clone/worktree: `npm ci`, `npm test`, `npm run lint`, `npm run build:prod`, native database integration tests, and a desktop smoke test. Record Node/npm versions, any environment-specific failures, and passing test counts. The current GitHub workflows provide a useful starting point but are not a substitute for PR validation.
 2. Run the official `ng update` schematics **one major at a time**, updating Angular core/CLI/Material/CDK, `@angular-builders/custom-webpack`, Angular ESLint and the test toolchain as coordinated groups. At each major, regenerate the lockfile using npm, compile and run tests **before advancing**. Do not use `--force` or `--legacy-peer-deps` to suppress real incompatibilities.
-3. Address known 22-specific changes: remove the obsolete `HammerModule` dependency and validate gestures; migrate `.eslintrc.json` to flat `eslint.config.*` with ESLint/Angular ESLint 22; switch Jest to `setupZoneTestEnv`; preserve the official `ChangeDetectionStrategy.Eager` migration for legacy components; migrate old `browserTarget` options where necessary. Review `angular-split` and Webpack externals with build output rather than assuming compatibility.
+3. Address known 22-specific changes: validate the removal of the obsolete `HammerModule` integration and gestures; migrate `.eslintrc.json` to flat `eslint.config.*` with ESLint/Angular ESLint 22; switch Jest to `setupZoneTestEnv`; preserve the official `ChangeDetectionStrategy.Eager` migration for legacy components; migrate old `browserTarget` options where necessary. Review `angular-split` and Webpack externals with build output rather than assuming compatibility.
 4. Pin the final CI Node version to a tested compatible patch (or choose a supported Node 24 patch). Run unit/lint/database tests, renderer build, and Windows/Linux/macOS packaging in a PR workflow. Exercise UI smoke tests for themes, i18n, playlists, library, album art, audio output, resume, playback and keyboard controls.
 
 Example of *one* official version hop (do not execute all hops without checks):
@@ -62,6 +62,10 @@ npx ng update @angular/cli@^17 @angular/core@^17
 ```
 
 Repeat for versions 18, 19, 20, 21, and 22 after meeting each stage's runtime/peer requirements. Material upgrade schematics should run where relevant.
+
+## Pull-request verification workflow
+
+The separate `.github/workflows/angular-migration.yml` checks reproducible installation (`npm ci`), unit tests, lint, and renderer compilation on Linux; it also compiles on Windows and macOS. It runs for relevant pull requests targeting `master` and can be dispatched manually where supported. **No workflow execution has yet been observed for that new file.** The existing `angular-migration-baseline.yml` has already measured the known lint failures; these are not waived as passing.
 
 ## Release / review gate
 
