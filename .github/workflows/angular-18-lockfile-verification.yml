@@ -1,0 +1,65 @@
+name: Angular 18 locked installation and cross-platform verification
+
+on:
+  push:
+    branches:
+      - chore/angular-18-migration-20261111
+    paths:
+      - '.github/workflows/angular-18-lockfile-verification.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'angular.json'
+      - 'src/app/app.module.ts'
+      - 'src/css/angular-material-theming.scss'
+      - 'tsconfig-serve.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular18-locked-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  locked-install:
+    name: Angular 18 locked dependencies (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout current feature-branch head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use official Angular 18 / Electron compatible Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+
+      - name: Log toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Install reproducibly with normal postinstall scripts
+        run: npm ci --no-audit --no-fund
+
+      - name: Confirm installed Angular versions
+        run: npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack typescript --depth=0
+
+      - name: Run full unit test suite
+        run: npm test
+
+      - name: Build Electron main and Angular renderer
+        run: npm run build:prod
+
+      - name: Verify tracked dependency manifests unchanged after install
+        shell: bash
+        run: |
+          git diff --exit-code -- package.json package-lock.json
