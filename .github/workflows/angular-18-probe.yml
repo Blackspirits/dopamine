@@ -1,0 +1,98 @@
+name: Angular 18 compatibility probe (isolated)
+
+on:
+  push:
+    branches:
+      - chore/angular-18-probe-20261111
+    paths:
+      - '.github/workflows/angular-18-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  angular18:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use supported Angular 18 Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+
+      - name: Prepare Angular 18 dependency group in runner only
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (p.devDependencies['@angular/core'] !== '17.3.12' ||
+              p.devDependencies['@angular/cli'] !== '17.3.17') {
+            throw new Error('This probe requires the validated Angular 17 baseline');
+          }
+          const names = ['animations','common','compiler','compiler-cli','core','forms',
+            'language-service','platform-browser','platform-browser-dynamic','router','cdk','material'];
+          for (const name of names) {
+            const key = '@angular/' + name;
+            for (const group of ['devDependencies','dependencies']) {
+              if (Object.prototype.hasOwnProperty.call(p[group] ?? {}, key)) p[group][key] = '^18.2.0';
+            }
+          }
+          Object.assign(p.devDependencies, {
+            '@angular/cli': '^18.2.0',
+            '@angular-devkit/build-angular': '^18.2.0',
+            '@angular-builders/custom-webpack': '^18.0.0',
+            'typescript': '~5.5.4',
+            'jest-preset-angular': '14.5.5',
+          });
+          for (const key of Object.keys(p.devDependencies)) {
+            if (key.startsWith('@angular-eslint/')) p.devDependencies[key] = '^18.0.0';
+          }
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 4) + '\n');
+          console.log('Prepared Angular 18 graph in disposable runner.');
+          NODE
+
+      - name: Resolve new peer graph without forcing dependencies
+        env:
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular typescript --depth=0
+
+      - name: Apply official Angular 18 migrations without force
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_engine_strict: 'false'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          CLI_TARGET="$(node -p "require('./node_modules/@angular/cli/package.json').version")"
+          CORE_TARGET="$(node -p "require('./node_modules/@angular/core/package.json').version")"
+          MATERIAL_TARGET="$(node -p "require('./node_modules/@angular/material/package.json').version")"
+          echo "CLI 17.3.17 -> $CLI_TARGET; Core 17.3.12 -> $CORE_TARGET; Material 17.3.10 -> $MATERIAL_TARGET"
+          npx ng update @angular/cli --migrate-only --from 17.3.17 --to "$CLI_TARGET" --allow-dirty
+          npx ng update @angular/core --migrate-only --from 17.3.12 --to "$CORE_TARGET" --allow-dirty
+          npx ng update @angular/material --migrate-only --from 17.3.10 --to "$MATERIAL_TARGET" --allow-dirty
+          git diff --stat
+
+      - name: Compile renderer and Electron main process
+        run: npm run build:prod
+
+      - name: Install Electron runtime for unit tests
+        run: node node_modules/electron/install.js
+
+      - name: Run all unit tests
+        run: npm test
+
+      - name: Report result and strict limits
+        if: always()
+        run: |
+          echo 'Angular 18 migration changes remain only in this disposable runner.'
+          echo 'Native Electron packaging, lint and integration tests are not validated here.'
+          git status --short
