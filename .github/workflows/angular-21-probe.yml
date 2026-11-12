@@ -1,0 +1,123 @@
+name: Angular 21 compatibility probe (isolated)
+
+on:
+  push:
+    branches:
+      - chore/angular-21-probe-20261112
+    paths:
+      - '.github/workflows/angular-21-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular21-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  angular21:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout isolated Angular 20 baseline
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use supported Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Stage complete Angular 21 and Jest 30 dependency group in disposable runner
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          if(p.devDependencies['@angular/core']!=='20.3.35'||
+             p.devDependencies['@angular/cli']!=='20.3.42'||
+             p.devDependencies.typescript!=='5.9.3'){
+             throw new Error('Expected tested Angular 20 source baseline');
+          }
+          const names=['animations','common','compiler','compiler-cli','core','forms',
+            'language-service','platform-browser','platform-browser-dynamic',
+            'router','cdk','material'];
+          for(const name of names){
+            const k='@angular/'+name;
+            let seen=false;
+            for(const section of ['dependencies','devDependencies']){
+              if(Object.hasOwn(p[section]??{},k)){
+                p[section][k]='^21.2.0';
+                seen=true;
+              }
+            }
+            if(!seen)throw new Error('Unexpected package set; missing '+k);
+          }
+          Object.assign(p.devDependencies,{
+            '@angular/cli':'^21.2.0',
+            '@angular-devkit/build-angular':'^21.2.0',
+            '@angular-builders/custom-webpack':'^21.0.0',
+            '@types/jest':'^30.0.0',
+            'typescript':'5.9.3',
+            'jest':'^30.0.0',
+            'jest-environment-jsdom':'^30.0.0',
+            'jsdom':'^26.0.0',
+            'jest-preset-angular':'16.2.0',
+            'ts-jest':'29.4.15',
+          });
+          let count=0;
+          for(const name of Object.keys(p.devDependencies)){
+            if(name.startsWith('@angular-eslint/')){
+              p.devDependencies[name]='^21.0.0';
+              count++;
+            }
+          }
+          if(count!==5)throw new Error('Unexpected @angular-eslint package set');
+          fs.writeFileSync('package.json',JSON.stringify(p,null,4)+'\n');
+          console.log('Only this disposable runner has modified its package.json');
+          NODE
+
+      - name: Resolve peer dependency graph without force or legacy-peer-deps
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular jest ts-jest typescript --depth=0
+
+      - name: Apply official Angular 21 CLI, core and Material migrations
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          CLI_TARGET="$(node -p "require('./node_modules/@angular/cli/package.json').version")"
+          CORE_TARGET="$(node -p "require('./node_modules/@angular/core/package.json').version")"
+          MATERIAL_TARGET="$(node -p "require('./node_modules/@angular/material/package.json').version")"
+          echo "Resolved Angular 21: CLI $CLI_TARGET; Core $CORE_TARGET; Material $MATERIAL_TARGET"
+          npx ng update @angular/cli --migrate-only --from 20.3.42 --to "$CLI_TARGET" --allow-dirty
+          npx ng update @angular/core --migrate-only --from 20.3.35 --to "$CORE_TARGET" --allow-dirty
+          npx ng update @angular/material --migrate-only --from 20.2.14 --to "$MATERIAL_TARGET" --allow-dirty
+          git diff --stat
+
+      - name: Ensure reproducible lockfile before testing
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Compile Electron main and Angular renderer
+        run: npm run build:prod
+
+      - name: Install Electron executable required by Jest imports
+        run: node node_modules/electron/install.js
+
+      - name: Run complete unit test suite
+        run: npm test
+
+      - name: Document changed files and non-release limitations
+        if: always()
+        run: |
+          echo 'This probe never pushes generated files. The project branch remains Angular 20.'
+          echo 'It is not a native Electron desktop package test or a UI regression test.'
+          git status --short
+          git diff --stat
