@@ -1,0 +1,62 @@
+name: Angular 21 reproducible cross-platform verification
+
+on:
+  push:
+    branches:
+      - chore/angular-21-migration-20261112
+    paths:
+      - '.github/workflows/angular-21-platform-verification.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'angular.json'
+      - 'src/**'
+      - 'tsconfig*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angular21-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Angular 21 npm ci, unit tests, build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-15]
+    steps:
+      - name: Checkout without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up supported Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+
+      - name: Verify migration versions and manifest consistency
+        run: |
+          node -e "const p=require('./package.json');const lock=require('./package-lock.json');for(const k of ['@angular/core','@angular/cli']){if(p.devDependencies[k]!=='^21.2.0'||lock.packages[''].devDependencies[k]!==p.devDependencies[k])process.exit(1)}if(p.dependencies['@angular/material']!=='^21.2.0'||p.devDependencies.typescript!=='5.9.3'||p.devDependencies.rxjs!=='^7.8.2')process.exit(1)"
+
+      - name: Reproducible native install including project postinstall scripts
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify dependency tree
+        run: npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics rxjs jest jest-preset-angular typescript --depth=0
+
+      - name: Run full unit test suite
+        run: npm test
+
+      - name: Compile Angular renderer and Electron main process
+        run: npm run build:prod
+
+      - name: Check that installation has not modified dependency manifests
+        shell: bash
+        run: git diff --exit-code -- package.json package-lock.json
