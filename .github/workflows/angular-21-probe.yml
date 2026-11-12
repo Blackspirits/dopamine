@@ -60,6 +60,7 @@ jobs:
             '@angular-builders/custom-webpack':'^21.0.0',
             '@types/jest':'^30.0.0',
             'typescript':'5.9.3',
+            'rxjs':'^7.8.2',
             'jest':'^30.0.0',
             'jest-environment-jsdom':'^30.0.0',
             'jsdom':'^26.0.0',
