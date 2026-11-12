@@ -1,0 +1,263 @@
+name: Stage Angular 21 migration (feature branch only)
+
+on:
+  push:
+    branches:
+      - chore/angular-21-migration-20261112
+    paths:
+      - '.github/angular-21-stage-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage-angular21-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/chore/angular-21-migration-20261112'
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout isolated Angular 20 baseline
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use supported Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+
+      - name: Stage complete Angular 21 and Jest 30 dependency group in disposable runner
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          if(p.devDependencies['@angular/core']!=='20.3.35'||
+             p.devDependencies['@angular/cli']!=='20.3.42'||
+             p.devDependencies.typescript!=='5.9.3'){
+             throw new Error('Expected tested Angular 20 source baseline');
+          }
+          const names=['animations','common','compiler','compiler-cli','core','forms',
+            'language-service','platform-browser','platform-browser-dynamic',
+            'router','cdk','material'];
+          for(const name of names){
+            const k='@angular/'+name;
+            let seen=false;
+            for(const section of ['dependencies','devDependencies']){
+              if(Object.hasOwn(p[section]??{},k)){
+                p[section][k]='^21.2.0';
+                seen=true;
+              }
+            }
+            if(!seen)throw new Error('Unexpected package set; missing '+k);
+          }
+          Object.assign(p.devDependencies,{
+            '@angular/cli':'^21.2.0',
+            '@angular-devkit/build-angular':'^21.2.0',
+            '@angular-builders/custom-webpack':'^21.0.0',
+            '@types/jest':'^30.0.0',
+            'typescript':'5.9.3',
+            'rxjs':'^7.8.2',
+            'jest':'^30.0.0',
+            'jest-environment-jsdom':'^30.0.0',
+            'jsdom':'^26.0.0',
+            'jest-preset-angular':'16.2.0',
+            'ts-jest':'29.4.15',
+          });
+          let count=0;
+          for(const name of Object.keys(p.devDependencies)){
+            if(name.startsWith('@angular-eslint/')){
+              p.devDependencies[name]='^21.0.0';
+              count++;
+            }
+          }
+          if(count!==5)throw new Error('Unexpected @angular-eslint package set');
+          fs.writeFileSync('package.json',JSON.stringify(p,null,4)+'\n');
+          console.log('Only this disposable runner has modified its package.json');
+          NODE
+
+      - name: Resolve peer dependency graph without force or legacy-peer-deps
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls @angular/core @angular/cli @angular/material @angular-builders/custom-webpack @angular-eslint/schematics jest-preset-angular jest ts-jest typescript --depth=0
+
+      - name: Apply official Angular 21 CLI, core and Material migrations
+        env:
+          NG_DISABLE_VERSION_CHECK: '1'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          CLI_TARGET="$(node -p "require('./node_modules/@angular/cli/package.json').version")"
+          CORE_TARGET="$(node -p "require('./node_modules/@angular/core/package.json').version")"
+          MATERIAL_TARGET="$(node -p "require('./node_modules/@angular/material/package.json').version")"
+          echo "Resolved Angular 21: CLI $CLI_TARGET; Core $CORE_TARGET; Material $MATERIAL_TARGET"
+          npx ng update @angular/cli --migrate-only --from 20.3.42 --to "$CLI_TARGET" --allow-dirty
+          npx ng update @angular/core --migrate-only --from 20.3.35 --to "$CORE_TARGET" --allow-dirty
+          npx ng update @angular/material --migrate-only --from 20.2.14 --to "$MATERIAL_TARGET" --allow-dirty
+          git diff --stat
+
+      - name: Use Angular 21-compatible bundler resolution for application and Jest
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='tsconfig.base.json';
+          const p=JSON.parse(fs.readFileSync(base,'utf8'));
+          if(p.compilerOptions.moduleResolution!=='node'){
+            throw new Error('Unexpected baseline moduleResolution: '+p.compilerOptions.moduleResolution);
+          }
+          p.compilerOptions.moduleResolution='bundler';
+          fs.writeFileSync(base,JSON.stringify(p,null,4)+'\n');
+          const spec='tsconfig.spec.json';
+          const original=fs.readFileSync(spec,'utf8');
+          const anchor='"outDir": "./out-tsc/spec",';
+          if(original.split(anchor).length!==2)throw new Error('Unexpected Jest tsconfig format');
+          fs.writeFileSync(spec,original.replace(anchor,anchor+'\n        "moduleResolution": "bundler",'));
+          NODE
+
+      - name: Preserve RxJS 7 response and event payload contracts in runner only
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = [
+            'src/app/common/api/lyrics/a-z-lyrics.api.ts',
+            'src/app/common/api/lyrics/chart-lyrics.api.ts',
+          ];
+          for(const path of paths){
+            let text = fs.readFileSync(path, 'utf8');
+            const importLine = "import { HttpClient } from '@angular/common/http';";
+            const source = "const response: string = await this.httpClient.get(url, { responseType: 'text' }).toPromise();";
+            const replacement = "const response: string = await firstValueFrom(this.httpClient.get(url, { responseType: 'text' }));";
+            if(text.split(importLine).length!==2 || text.split(source).length!==2)throw new Error('Unrecognised lyrics API source: '+path);
+            text = text.replace(importLine, importLine+"\nimport { firstValueFrom } from 'rxjs';").replace(source,replacement);
+            fs.writeFileSync(path,text);
+          }
+          const target = 'src/app/services/event-listener/event-listener.service.ts';
+          let text = fs.readFileSync(target,'utf8');
+          const previous='this.argumentsReceived.next(argv);';
+          if(text.split(previous).length!==2)throw new Error('Unexpected event listener source');
+          text=text.replace(previous,'this.argumentsReceived.next(argv ?? []);');
+          fs.writeFileSync(target,text);
+          NODE
+
+      - name: Ensure reproducible lockfile before testing
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Compile Electron main and Angular renderer
+        run: npm run build:prod
+
+      - name: Install Electron executable required by Jest imports
+        run: node node_modules/electron/install.js
+
+      - name: Run complete unit test suite
+        run: npm test
+
+      - name: Gate source paths, lockfile and migrated Angular version
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const p=require('./package.json');
+          const lock=require('./package-lock.json');
+          for(const key of ['@angular/core','@angular/cli']){
+            const actual=p.devDependencies[key];
+            if(!actual.startsWith('^21.') && !actual.startsWith('21.'))throw new Error('Wrong Angular target '+key+': '+actual);
+            if(lock.packages[''].devDependencies[key]!==actual)throw new Error('Lockfile mismatch '+key);
+          }
+          const files=execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts']);
+          const allowed=(f)=>exact.has(f)||/^src\/app\/.+\.html$/.test(f);
+          const unexpected=files.filter(f=>!allowed(f));
+          if(unexpected.length)throw new Error('Unexpected generated migration changes: '+JSON.stringify(unexpected));
+          for(const must of ['package.json','package-lock.json','tsconfig.base.json','tsconfig.spec.json']){
+            if(!files.includes(must))throw new Error('Missing expected change: '+must);
+          }
+          if(files.length<65 || files.length>95)throw new Error('Unexpected migration diff count: '+files.length);
+          console.log('Verified '+files.length+' migrated files, only expected source paths.');
+          NODE
+          git diff --check
+
+      - name: Upload tested Git patch (not the repository)
+        run: |
+          mkdir -p .tmp
+          git diff --binary > .tmp/angular21.patch
+          test -s .tmp/angular21.patch
+
+      - name: Store validated patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular21-validated-patch
+          path: .tmp/angular21.patch
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Report outstanding desktop and review requirements
+        if: always()
+        run: |
+          echo 'No Electron packaging, lint, database integration, manual UI or independent review was performed here.'
+          echo 'No changes have been published to master or upstream.'
+          git status --short
+
+  publish:
+    name: Commit tested Angular 21 patch ONLY to isolated feature branch
+    needs: migrate
+    if: github.ref == 'refs/heads/chore/angular-21-migration-20261112'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout isolated feature branch without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Retrieve tested patch
+        uses: actions/download-artifact@v4
+        with:
+          name: angular21-validated-patch
+          path: .tmp
+
+      - name: Validate patch and stage only expected source changes
+        run: |
+          git apply --check .tmp/angular21.patch
+          node <<'NODE'
+          const fs=require('node:fs');
+          const patch=fs.readFileSync('.tmp/angular21.patch','utf8');
+          const matches=[...patch.matchAll(/^diff --git a\/([^\n]+) b\/([^\n]+)$/gm)];
+          if(matches.length<65 || matches.length>95)throw new Error('Unexpected patch file count: '+matches.length);
+          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts']);
+          for(const m of matches){
+            if(m[1]!==m[2] || !(exact.has(m[1])||/^src\/app\/.+\.html$/.test(m[1])))throw new Error('Unexpected patch path: '+m[1]);
+          }
+          NODE
+          git apply .tmp/angular21.patch
+          git diff --check
+          node <<'NODE'
+          const p=require('./package.json');
+          const lock=require('./package-lock.json');
+          if(!p.devDependencies['@angular/core'].startsWith('^21.') ||
+             lock.packages[''].devDependencies['@angular/core']!==p.devDependencies['@angular/core']){
+            throw new Error('Angular 21 patch versions / lockfile mismatched');
+          }
+          NODE
+
+      - name: Commit to feature branch; never merge or push master
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add -- package.json package-lock.json angular.json tsconfig.base.json tsconfig.spec.json src
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: migrate Angular 20 to 21 with official schematics'
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" push origin HEAD:refs/heads/chore/angular-21-migration-20261112
