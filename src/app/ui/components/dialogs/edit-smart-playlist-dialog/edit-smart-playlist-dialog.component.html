@@ -25,77 +25,82 @@
                 <div matTooltip="{{ 'change-image' | translate }}" (click)="this.changeImageAsync()">
                     <img [attr.src]="this.playlistImagePath | imageToFilePath" width="120" height="120" loading="lazy" draggable="false" />
                 </div>
-                <div
-                    class="edit-playlist__remove-button d-flex justify-content-center align-items-center"
-                    *ngIf="this.hasPlaylistImagePath"
-                    matTooltip="{{ 'remove-image' | translate }}"
-                    (click)="this.removeImage()"
-                >
-                    <i class="las la-times"></i>
-                </div>
+                @if (this.hasPlaylistImagePath) {
+                    <div
+                        class="edit-playlist__remove-button d-flex justify-content-center align-items-center"
+                        matTooltip="{{ 'remove-image' | translate }}"
+                        (click)="this.removeImage()"
+                    >
+                        <i class="las la-times"></i>
+                    </div>
+                }
             </div>
         </div>
         <div class="smart-playlist-grid__content">
             <mat-form-field class="w-100">
                 <input matInput [(ngModel)]="this.playlistName" placeholder="{{ 'playlist-name' | translate }}" />
             </mat-form-field>
-            <div class="d-flex flex-row align-items-center" *ngFor="let filter of filters; let i = index">
-                <mat-form-field class="filter-field mr-2">
-                    <mat-select
-                        [(ngModel)]="filter.field"
-                        [compareWith]="compareFields"
-                        placeholder="Field"
-                        (selectionChange)="onFieldChanged(filter)"
-                    >
-                        <mat-option *ngFor="let field of fields" [value]="field">{{ field.translationKey | translate }}</mat-option>
-                    </mat-select>
-                </mat-form-field>
-                <mat-form-field class="filter-operator mr-2">
-                    <mat-select
-                        [(ngModel)]="filter.operator"
-                        [compareWith]="compareOperators"
-                        placeholder="Operator"
-                        [disabled]="!filter.field"
-                    >
-                        <mat-option *ngFor="let operator of getOperatorsForFilter(filter)" [value]="operator">{{
-                            operator.translationKey | translate
-                        }}</mat-option>
-                    </mat-select>
-                </mat-form-field>
-                <mat-form-field
-                    class="filter-value mr-2"
-                    *ngIf="filter.field?.name !== 'rating' && filter.field?.name !== 'love' && filter.field?.type !== 'boolean'"
-                >
-                    <input [(ngModel)]="filter.value" matInput placeholder="{{ 'value' | translate }}" />
-                </mat-form-field>
-                <mat-form-field class="filter-value mr-2" *ngIf="filter.field?.type === 'boolean' && filter.field?.name !== 'love'">
-                    <mat-select [(ngModel)]="filter.value" placeholder="{{ 'value' | translate }}"> </mat-select>
-                </mat-form-field>
-                <div
-                    class="filter-value filter-rating mr-2 d-flex flex-row align-items-center justify-content-center"
-                    *ngIf="filter.field?.name === 'rating'"
-                >
-                    <div
-                        class="pointer"
-                        *ngFor="let star of stars"
-                        [ngClass]="getRatingStarClass(filter, star)"
-                        (click)="onRatingStarClick($event, filter, star)"
-                    ></div>
+            @for (filter of filters; track filter; let i = $index) {
+                <div class="d-flex flex-row align-items-center">
+                    <mat-form-field class="filter-field mr-2">
+                        <mat-select
+                            [(ngModel)]="filter.field"
+                            [compareWith]="compareFields"
+                            placeholder="Field"
+                            (selectionChange)="onFieldChanged(filter)"
+                        >
+                            @for (field of fields; track field) {
+                                <mat-option [value]="field">{{ field.translationKey | translate }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                    <mat-form-field class="filter-operator mr-2">
+                        <mat-select
+                            [(ngModel)]="filter.operator"
+                            [compareWith]="compareOperators"
+                            placeholder="Operator"
+                            [disabled]="!filter.field"
+                        >
+                            @for (operator of getOperatorsForFilter(filter); track operator) {
+                                <mat-option [value]="operator">{{ operator.translationKey | translate }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                    @if (filter.field?.name !== 'rating' && filter.field?.name !== 'love' && filter.field?.type !== 'boolean') {
+                        <mat-form-field class="filter-value mr-2">
+                            <input [(ngModel)]="filter.value" matInput placeholder="{{ 'value' | translate }}" />
+                        </mat-form-field>
+                    }
+                    @if (filter.field?.type === 'boolean' && filter.field?.name !== 'love') {
+                        <mat-form-field class="filter-value mr-2">
+                            <mat-select [(ngModel)]="filter.value" placeholder="{{ 'value' | translate }}"> </mat-select>
+                        </mat-form-field>
+                    }
+                    @if (filter.field?.name === 'rating') {
+                        <div class="filter-value filter-rating mr-2 d-flex flex-row align-items-center justify-content-center">
+                            @for (star of stars; track star) {
+                                <div
+                                    class="pointer"
+                                    [ngClass]="getRatingStarClass(filter, star)"
+                                    (click)="onRatingStarClick($event, filter, star)"
+                                ></div>
+                            }
+                        </div>
+                    }
+                    @if (filter.field?.name === 'love') {
+                        <div class="filter-value filter-rating mr-2 d-flex flex-row align-items-center justify-content-center">
+                            <div class="pointer" [ngClass]="getLoveClass(filter)" (click)="toggleLove(filter)"></div>
+                        </div>
+                    }
+                    <app-icon-button
+                        class="remove-filter-button ml-2"
+                        [ngClass]="{ inactive: filters.length <= 1 }"
+                        icon="las la-times"
+                        matTooltip="{{ 'remove' | translate }}"
+                        (click)="removeFilter(i)"
+                    ></app-icon-button>
                 </div>
-                <div
-                    class="filter-value filter-rating mr-2 d-flex flex-row align-items-center justify-content-center"
-                    *ngIf="filter.field?.name === 'love'"
-                >
-                    <div class="pointer" [ngClass]="getLoveClass(filter)" (click)="toggleLove(filter)"></div>
-                </div>
-                <app-icon-button
-                    class="remove-filter-button ml-2"
-                    [ngClass]="{ inactive: filters.length <= 1 }"
-                    icon="las la-times"
-                    matTooltip="{{ 'remove' | translate }}"
-                    (click)="removeFilter(i)"
-                ></app-icon-button>
-            </div>
+            }
             <div class="filter-row d-flex flex-row align-items-center">
                 <div class="filter-field mr-2"></div>
                 <div class="filter-operator mr-2"></div>
@@ -114,7 +119,9 @@
                 </mat-form-field>
                 <mat-form-field class="limit-unit" [ngClass]="{ inactive: !this.limitEnabled }">
                     <mat-select [(ngModel)]="this.limitUnit">
-                        <mat-option *ngFor="let unit of limitUnits" [value]="unit.name">{{ unit.translationKey | translate }}</mat-option>
+                        @for (unit of limitUnits; track unit) {
+                            <mat-option [value]="unit.name">{{ unit.translationKey | translate }}</mat-option>
+                        }
                     </mat-select>
                 </mat-form-field>
             </div>

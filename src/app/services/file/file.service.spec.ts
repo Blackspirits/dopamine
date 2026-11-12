@@ -240,7 +240,8 @@ describe('FileService', () => {
             createService();
 
             // Act
-            argumentsReceivedMock.next(undefined);
+            // Intentional malformed payload: verify resilience despite the typed event contract.
+            argumentsReceivedMock.next(undefined as unknown as string[]);
             await flushPromises();
 
             // Assert

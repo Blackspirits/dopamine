@@ -1,6 +1,8 @@
 <div class="window-frame">
     <div class="window-frame__titlebar theme-header-background">
-        <div *ngIf="appearanceService.needsTrafficLightMargin" class="window-frame__trafficlights"></div>
+        @if (appearanceService.needsTrafficLightMargin) {
+            <div class="window-frame__trafficlights"></div>
+        }
         <app-back-button class="m-2"></app-back-button>
         <app-sub-menu appWindowDraggable>
             <app-sub-menu-item
@@ -43,21 +45,39 @@
         <div class="window-frame__dragarea"></div>
         <app-main-menu></app-main-menu>
         <app-switch-player-button></app-switch-player-button>
-        <app-window-controls *ngIf="appearanceService.needsCustomWindowControls"></app-window-controls>
+        @if (appearanceService.needsCustomWindowControls) {
+            <app-window-controls></app-window-controls>
+        }
     </div>
     <app-notification-bar></app-notification-bar>
     <div class="window-frame__content__with__notification__bar">
         <!-- Appearance -->
-        <app-appearance-settings *ngIf="this.leftToRight(0)" [@enterLeftToRight]></app-appearance-settings>
-        <app-appearance-settings *ngIf="this.rightToLeft(0)" [@enterRightToLeft]></app-appearance-settings>
+        @if (this.leftToRight(0)) {
+            <app-appearance-settings [@enterLeftToRight]></app-appearance-settings>
+        }
+        @if (this.rightToLeft(0)) {
+            <app-appearance-settings [@enterRightToLeft]></app-appearance-settings>
+        }
         <!-- Behavior -->
-        <app-behavior-settings *ngIf="this.leftToRight(1)" [@enterLeftToRight]></app-behavior-settings>
-        <app-behavior-settings *ngIf="this.rightToLeft(1)" [@enterRightToLeft]></app-behavior-settings>
+        @if (this.leftToRight(1)) {
+            <app-behavior-settings [@enterLeftToRight]></app-behavior-settings>
+        }
+        @if (this.rightToLeft(1)) {
+            <app-behavior-settings [@enterRightToLeft]></app-behavior-settings>
+        }
         <!-- Advanced -->
-        <app-advanced-settings *ngIf="this.leftToRight(2)" [@enterLeftToRight]></app-advanced-settings>
-        <app-advanced-settings *ngIf="this.rightToLeft(2)" [@enterRightToLeft]></app-advanced-settings>
+        @if (this.leftToRight(2)) {
+            <app-advanced-settings [@enterLeftToRight]></app-advanced-settings>
+        }
+        @if (this.rightToLeft(2)) {
+            <app-advanced-settings [@enterRightToLeft]></app-advanced-settings>
+        }
         <!-- Online -->
-        <app-online-settings *ngIf="this.leftToRight(3)" [@enterLeftToRight]></app-online-settings>
-        <app-online-settings *ngIf="this.rightToLeft(3)" [@enterRightToLeft]></app-online-settings>
+        @if (this.leftToRight(3)) {
+            <app-online-settings [@enterLeftToRight]></app-online-settings>
+        }
+        @if (this.rightToLeft(3)) {
+            <app-online-settings [@enterRightToLeft]></app-online-settings>
+        }
     </div>
 </div>

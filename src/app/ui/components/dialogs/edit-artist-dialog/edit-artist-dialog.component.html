@@ -21,22 +21,24 @@
                     />
                 </svg>
             </div>
-            <div
-                *ngIf="isImageAvailable"
-                class="d-flex align-items-center justify-content-center"
-                matTooltip="{{ 'change-image' | translate }}"
-                (click)="this.selectLocalImageAsync()"
-            >
-                <img [src]="this.imagePath" width="180" height="180" loading="lazy" draggable="false" />
-            </div>
-            <div
-                class="edit-artist__remove-button d-flex justify-content-center align-items-center"
-                *ngIf="isImageAvailable"
-                matTooltip="{{ 'remove-image' | translate }}"
-                (click)="this.removeImage()"
-            >
-                <i class="las la-times"></i>
-            </div>
+            @if (isImageAvailable) {
+                <div
+                    class="d-flex align-items-center justify-content-center"
+                    matTooltip="{{ 'change-image' | translate }}"
+                    (click)="this.selectLocalImageAsync()"
+                >
+                    <img [src]="this.imagePath" width="180" height="180" loading="lazy" draggable="false" />
+                </div>
+            }
+            @if (isImageAvailable) {
+                <div
+                    class="edit-artist__remove-button d-flex justify-content-center align-items-center"
+                    matTooltip="{{ 'remove-image' | translate }}"
+                    (click)="this.removeImage()"
+                >
+                    <i class="las la-times"></i>
+                </div>
+            }
         </div>
 
         <app-transparent-button class="mt-3" [fill]="true" (click)="this.searchForImagesOnline()">
@@ -44,22 +46,22 @@
         </app-transparent-button>
 
         <div class="image-container d-flex flex-row mt-3" [ngStyle]="{ height: this.alternativeImageUrls.length > 0 ? '191px' : '0px' }">
-            <div
-                *ngFor="let imageUrl of this.alternativeImageUrls; let i = index"
-                class="d-flex align-items-center justify-content-center mr-3 ml-3 pointer"
-                (click)="this.selectOnlineImage(imageUrl)"
-            >
-                <mat-spinner *ngIf="!alternativeImageLoaded[i]" diameter="40"></mat-spinner>
-                <img
-                    [src]="imageUrl"
-                    width="180"
-                    height="180"
-                    loading="lazy"
-                    draggable="false"
-                    [style.visibility]="alternativeImageLoaded[i] ? 'visible' : 'hidden'"
-                    (load)="onImageLoaded(i)"
-                />
-            </div>
+            @for (imageUrl of this.alternativeImageUrls; track imageUrl; let i = $index) {
+                <div class="d-flex align-items-center justify-content-center mr-3 ml-3 pointer" (click)="this.selectOnlineImage(imageUrl)">
+                    @if (!alternativeImageLoaded[i]) {
+                        <mat-spinner diameter="40"></mat-spinner>
+                    }
+                    <img
+                        [src]="imageUrl"
+                        width="180"
+                        height="180"
+                        loading="lazy"
+                        draggable="false"
+                        [style.visibility]="alternativeImageLoaded[i] ? 'visible' : 'hidden'"
+                        (load)="onImageLoaded(i)"
+                    />
+                </div>
+            }
         </div>
     </div>
 </mat-dialog-content>

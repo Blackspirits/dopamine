@@ -2,17 +2,22 @@
     <div class="playlist-folder-browser__header m-1">
         <div class="playlist-folder-browser__count">
             <div class="playlist-folder-browser__number mr-2">{{ this.playlistFolders.length }}</div>
-            <div *ngIf="this.playlistFolders.length === 1">{{ 'playlist-folder' | translate }}</div>
-            <div *ngIf="this.playlistFolders.length !== 1">{{ 'playlist-folders' | translate }}</div>
+            @if (this.playlistFolders.length === 1) {
+                <div>{{ 'playlist-folder' | translate }}</div>
+            }
+            @if (this.playlistFolders.length !== 1) {
+                <div>{{ 'playlist-folders' | translate }}</div>
+            }
         </div>
         <div class="d-flex flex-row align-items-center">
-            <app-icon-button
-                *ngIf="this.hasSelectedPlaylistFolders"
-                class="mr-2"
-                icon="las la-eraser"
-                matTooltip="{{ 'clear-selection' | translate }}"
-                (click)="this.clearSelectedPlaylistFolders()"
-            ></app-icon-button>
+            @if (this.hasSelectedPlaylistFolders) {
+                <app-icon-button
+                    class="mr-2"
+                    icon="las la-eraser"
+                    matTooltip="{{ 'clear-selection' | translate }}"
+                    (click)="this.clearSelectedPlaylistFolders()"
+                ></app-icon-button>
+            }
             <app-icon-button
                 icon="las la-plus"
                 matTooltip="{{ 'create-playlist-folder' | translate }}"

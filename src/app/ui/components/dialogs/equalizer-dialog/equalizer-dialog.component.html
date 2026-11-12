@@ -5,9 +5,11 @@
             <app-toggle-switch [(isChecked)]="this.isEnabled">{{ 'enable-equalizer' | translate }}</app-toggle-switch>
             <mat-form-field class="equalizer__preset" [class.equalizer__preset--disabled]="!this.isEnabled">
                 <mat-select [(ngModel)]="this.selectedPreset" [disabled]="!this.isEnabled">
-                    <mat-option *ngFor="let preset of this.presetNames" [value]="preset">
-                        {{ 'equalizer-preset-' + preset | translate }}
-                    </mat-option>
+                    @for (preset of this.presetNames; track preset) {
+                        <mat-option [value]="preset">
+                            {{ 'equalizer-preset-' + preset | translate }}
+                        </mat-option>
+                    }
                 </mat-select>
             </mat-form-field>
         </div>
@@ -22,34 +24,32 @@
                 </defs>
                 <path class="equalizer__chart-area" [attr.d]="this.areaPath"></path>
                 <path class="equalizer__chart-line" [attr.d]="this.linePath"></path>
-                <circle
-                    *ngFor="let dot of this.dots"
-                    class="equalizer__chart-dot"
-                    [attr.cx]="dot.x"
-                    [attr.cy]="dot.y"
-                    r="5"
-                ></circle>
+                @for (dot of this.dots; track dot) {
+                    <circle class="equalizer__chart-dot" [attr.cx]="dot.x" [attr.cy]="dot.y" r="5"></circle>
+                }
             </svg>
-            <div class="equalizer-band" *ngFor="let frequency of this.bands; let i = index">
-                <div class="equalizer-band__value" [class.equalizer-band__value--active]="this.gains[i] !== 0">
-                    {{ this.formatGain(this.gains[i]) }}
+            @for (frequency of this.bands; track frequency; let i = $index) {
+                <div class="equalizer-band">
+                    <div class="equalizer-band__value" [class.equalizer-band__value--active]="this.gains[i] !== 0">
+                        {{ this.formatGain(this.gains[i]) }}
+                    </div>
+                    <div
+                        class="equalizer-band__track"
+                        #track
+                        role="slider"
+                        tabindex="0"
+                        [attr.aria-valuemin]="this.minimumGain"
+                        [attr.aria-valuemax]="this.maximumGain"
+                        [attr.aria-valuenow]="this.gains[i]"
+                        [attr.aria-disabled]="!this.isEnabled"
+                        (pointerdown)="this.onTrackPointerDown(i, $event)"
+                        (keydown)="this.onTrackKeyDown(i, $event)"
+                    >
+                        <div class="equalizer-band__track-line"></div>
+                    </div>
+                    <div class="equalizer-band__frequency">{{ this.formatFrequency(frequency) }}</div>
                 </div>
-                <div
-                    class="equalizer-band__track"
-                    #track
-                    role="slider"
-                    tabindex="0"
-                    [attr.aria-valuemin]="this.minimumGain"
-                    [attr.aria-valuemax]="this.maximumGain"
-                    [attr.aria-valuenow]="this.gains[i]"
-                    [attr.aria-disabled]="!this.isEnabled"
-                    (pointerdown)="this.onTrackPointerDown(i, $event)"
-                    (keydown)="this.onTrackKeyDown(i, $event)"
-                >
-                    <div class="equalizer-band__track-line"></div>
-                </div>
-                <div class="equalizer-band__frequency">{{ this.formatFrequency(frequency) }}</div>
-            </div>
+            }
         </div>
     </div>
 </mat-dialog-content>

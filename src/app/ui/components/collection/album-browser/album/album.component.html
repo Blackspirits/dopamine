@@ -1,10 +1,12 @@
 <div class="app-album">
     <div class="app-album-content">
-        <div class="app-album__year-wrapper" *ngIf="this.album.showYear" [ngClass]="{ hidden: !album.yearHeader }">
-            <div class="app-album__year my-2">
-                {{ album.yearHeader }}
+        @if (this.album.showYear) {
+            <div class="app-album__year-wrapper" [ngClass]="{ hidden: !album.yearHeader }">
+                <div class="app-album__year my-2">
+                    {{ album.yearHeader }}
+                </div>
             </div>
-        </div>
+        }
 
         <div
             class="app-album-border"
@@ -37,22 +39,26 @@
                     />
                 </div>
             </div>
-            <div *ngIf="this.showYear" class="app-album__information">
-                <div class="app-album__information__line1 ellipsis" [matTooltip]="this.getAlbumTooltip(album.albumTitle, album.year)">
-                    {{ album.albumTitle }}
+            @if (this.showYear) {
+                <div class="app-album__information">
+                    <div class="app-album__information__line1 ellipsis" [matTooltip]="this.getAlbumTooltip(album.albumTitle, album.year)">
+                        {{ album.albumTitle }}
+                    </div>
+                    <div class="app-album__information__line2 ellipsis secondary-text smaller" matTooltip="{{ album.albumArtist }}">
+                        {{ this.formatYear(album.year) }}
+                    </div>
                 </div>
-                <div class="app-album__information__line2 ellipsis secondary-text smaller" matTooltip="{{ album.albumArtist }}">
-                    {{ this.formatYear(album.year) }}
+            }
+            @if (!this.showYear) {
+                <div class="app-album__information">
+                    <div class="app-album__information__line1 ellipsis" [matTooltip]="this.getAlbumTooltip(album.albumTitle, album.year)">
+                        {{ album.albumTitle }}
+                    </div>
+                    <div class="app-album__information__line2 ellipsis secondary-text smaller" matTooltip="{{ album.albumArtist }}">
+                        {{ album.albumArtist }}
+                    </div>
                 </div>
-            </div>
-            <div *ngIf="!this.showYear" class="app-album__information">
-                <div class="app-album__information__line1 ellipsis" [matTooltip]="this.getAlbumTooltip(album.albumTitle, album.year)">
-                    {{ album.albumTitle }}
-                </div>
-                <div class="app-album__information__line2 ellipsis secondary-text smaller" matTooltip="{{ album.albumArtist }}">
-                    {{ album.albumArtist }}
-                </div>
-            </div>
+            }
         </div>
     </div>
 </div>

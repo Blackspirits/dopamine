@@ -2,6 +2,7 @@
     "extends": "./tsconfig.base.json",
     "compilerOptions": {
         "outDir": "./out-tsc/spec",
+        "moduleResolution": "bundler",
         "types": [
             "jest", // 1
             "node"

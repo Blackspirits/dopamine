@@ -2,8 +2,12 @@
     <div class="app-playlist-track-browser__header m-1">
         <div class="app-playlist-track-browser__trackscount">
             <div class="app-playlist-track-browser__trackscount__number mr-2">{{ this.tracks.numberOfTracks }}</div>
-            <div *ngIf="this.tracks.numberOfTracks === 1">{{ 'track' | translate }}</div>
-            <div *ngIf="this.tracks.numberOfTracks !== 1">{{ 'tracks' | translate }}</div>
+            @if (this.tracks.numberOfTracks === 1) {
+                <div>{{ 'track' | translate }}</div>
+            }
+            @if (this.tracks.numberOfTracks !== 1) {
+                <div>{{ 'tracks' | translate }}</div>
+            }
         </div>
         <app-icon-button
             icon="las la-crosshairs"
@@ -50,9 +54,13 @@
         <button mat-menu-item (click)="onShowInFolder()">
             <span>{{ 'show-in-folder' | translate }}</span>
         </button>
-        <mat-divider *ngIf="this.canRemoveFromPlaylist"></mat-divider>
-        <button mat-menu-item *ngIf="this.canRemoveFromPlaylist" (click)="onRemoveFromPlaylistAsync()">
-            {{ 'remove-from-playlist' | translate }}
-        </button>
+        @if (this.canRemoveFromPlaylist) {
+            <mat-divider></mat-divider>
+        }
+        @if (this.canRemoveFromPlaylist) {
+            <button mat-menu-item (click)="onRemoveFromPlaylistAsync()">
+                {{ 'remove-from-playlist' | translate }}
+            </button>
+        }
     </ng-template>
 </mat-menu>

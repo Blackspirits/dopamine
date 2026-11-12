@@ -11,7 +11,9 @@
     ></div>
     <div class="window-frame">
         <div class="window-frame__titlebar">
-            <div *ngIf="appearanceService.needsTrafficLightMargin" class="window-frame__trafficlights"></div>
+            @if (appearanceService.needsTrafficLightMargin) {
+                <div class="window-frame__trafficlights"></div>
+            }
             <div class="window-button back-button" (click)="this.goBackToCollectionAsync()" [@controlsVisibility]="controlsVisibility">
                 <i class="back-button__icon las la-arrow-left"></i>
             </div>
@@ -20,27 +22,44 @@
                 [@controlsVisibility]="controlsVisibility"
                 [appControlsHidden]="controlsVisibility === 'hidden'"
             ></app-switch-player-button>
-            <app-window-controls
-                *ngIf="appearanceService.needsCustomWindowControls"
-                [@controlsVisibility]="controlsVisibility"
-                [appControlsHidden]="controlsVisibility === 'hidden'"
-            ></app-window-controls>
+            @if (appearanceService.needsCustomWindowControls) {
+                <app-window-controls
+                    [@controlsVisibility]="controlsVisibility"
+                    [appControlsHidden]="controlsVisibility === 'hidden'"
+                ></app-window-controls>
+            }
         </div>
         <div class="window-frame__content">
             <div class="app-now-playing">
                 <div class="app-now-playing__content">
                     <!-- Nothing playing -->
-                    <app-now-playing-nothing-playing *ngIf="this.leftToRight(0)" [@enterLeftToRight]></app-now-playing-nothing-playing>
-                    <app-now-playing-nothing-playing *ngIf="this.rightToLeft(0)" [@enterRightToLeft]></app-now-playing-nothing-playing>
+                    @if (this.leftToRight(0)) {
+                        <app-now-playing-nothing-playing [@enterLeftToRight]></app-now-playing-nothing-playing>
+                    }
+                    @if (this.rightToLeft(0)) {
+                        <app-now-playing-nothing-playing [@enterRightToLeft]></app-now-playing-nothing-playing>
+                    }
                     <!-- Showcase -->
-                    <app-now-playing-showcase *ngIf="this.leftToRight(1)" [@enterLeftToRight]></app-now-playing-showcase>
-                    <app-now-playing-showcase *ngIf="this.rightToLeft(1)" [@enterRightToLeft]></app-now-playing-showcase>
+                    @if (this.leftToRight(1)) {
+                        <app-now-playing-showcase [@enterLeftToRight]></app-now-playing-showcase>
+                    }
+                    @if (this.rightToLeft(1)) {
+                        <app-now-playing-showcase [@enterRightToLeft]></app-now-playing-showcase>
+                    }
                     <!-- Lyrics -->
-                    <app-now-playing-lyrics *ngIf="this.leftToRight(2)" [@enterLeftToRight]></app-now-playing-lyrics>
-                    <app-now-playing-lyrics *ngIf="this.rightToLeft(2)" [@enterRightToLeft]></app-now-playing-lyrics>
+                    @if (this.leftToRight(2)) {
+                        <app-now-playing-lyrics [@enterLeftToRight]></app-now-playing-lyrics>
+                    }
+                    @if (this.rightToLeft(2)) {
+                        <app-now-playing-lyrics [@enterRightToLeft]></app-now-playing-lyrics>
+                    }
                     <!-- Artist info -->
-                    <app-now-playing-artist-info *ngIf="this.leftToRight(3)" [@enterLeftToRight]></app-now-playing-artist-info>
-                    <app-now-playing-artist-info *ngIf="this.rightToLeft(3)" [@enterRightToLeft]></app-now-playing-artist-info>
+                    @if (this.leftToRight(3)) {
+                        <app-now-playing-artist-info [@enterLeftToRight]></app-now-playing-artist-info>
+                    }
+                    @if (this.rightToLeft(3)) {
+                        <app-now-playing-artist-info [@enterRightToLeft]></app-now-playing-artist-info>
+                    }
                 </div>
                 <div class="app-now-playing-playback-controls__container">
                     <div

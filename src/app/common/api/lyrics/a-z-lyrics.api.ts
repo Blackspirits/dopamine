@@ -7,6 +7,7 @@ import { ILyricsApi } from './i-lyrics.api';
 import { Injectable } from '@angular/core';
 import { Lyrics } from './lyrics';
 import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import * as cheerio from 'cheerio';
 import { CheerioAPI } from 'cheerio';
 import { StringUtils } from '../../utils/string-utils';
@@ -21,7 +22,7 @@ export class AZLyricsApi implements ILyricsApi {
 
     public async getLyricsAsync(artist: string, title: string): Promise<Lyrics> {
         const url: string = this.buildUrl(artist, title);
-        const response: string = await this.httpClient.get(url, { responseType: 'text' }).toPromise();
+        const response: string = await firstValueFrom(this.httpClient.get(url, { responseType: 'text' }));
 
         const cheerioAPI: CheerioAPI = cheerio.load(response);
 

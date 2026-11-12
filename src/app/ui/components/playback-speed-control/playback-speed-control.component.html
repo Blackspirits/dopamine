@@ -38,14 +38,15 @@
             <button class="app-playback-speed-control__adjustment-button" (click)="increaseSpeed()">+</button>
         </div>
         <div class="app-playback-speed-control__presets">
-            <button
-                *ngFor="let preset of speedPresets"
-                class="app-playback-speed-control__preset"
-                [class.app-playback-speed-control__preset--selected]="speed === preset"
-                (click)="setSpeed(preset)"
-            >
-                {{ formatSpeed(preset) }}x
-            </button>
+            @for (preset of speedPresets; track preset) {
+                <button
+                    class="app-playback-speed-control__preset"
+                    [class.app-playback-speed-control__preset--selected]="speed === preset"
+                    (click)="setSpeed(preset)"
+                >
+                    {{ formatSpeed(preset) }}x
+                </button>
+            }
         </div>
     </div>
 </ng-template>

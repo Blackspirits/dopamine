@@ -8,14 +8,15 @@
         <i class="las la-user"> </i>
     </div>
     <div class="similar-artist__picture--content">
-        <img
-            *ngIf="this.similarArtist.imageUrl"
-            [src]="this.similarArtist.imageUrl"
-            [width]="120"
-            [height]="120"
-            draggable="false"
-            [ngClass]="{ 'similar-artist-rounded': !this.settings.showSquareImages }"
-        />
+        @if (this.similarArtist.imageUrl) {
+            <img
+                [src]="this.similarArtist.imageUrl"
+                [width]="120"
+                [height]="120"
+                draggable="false"
+                [ngClass]="{ 'similar-artist-rounded': !this.settings.showSquareImages }"
+            />
+        }
     </div>
     <div class="similar-artist__picture--name">
         <p>{{ this.similarArtist.name }}</p>

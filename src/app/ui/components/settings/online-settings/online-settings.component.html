@@ -47,13 +47,17 @@
             <app-accent-button class="mr-3" (click)="this.signInToLastFmAsync()">
                 {{ 'log-in' | translate }}
             </app-accent-button>
-            <div class="d-flex flex-row align-items-center" *ngIf="this.lastfmSignInState === signInStateEnum.SignedIn">
-                <i class="las la-check mr-1 accent-color"></i>
-                {{ 'logged-in' | translate }}
-            </div>
-            <div class="d-flex flex-row align-items-center" *ngIf="this.lastfmSignInState !== signInStateEnum.SignedIn">
-                <div class="secondary-text">{{ 'logged-out' | translate }}</div>
-            </div>
+            @if (this.lastfmSignInState === signInStateEnum.SignedIn) {
+                <div class="d-flex flex-row align-items-center">
+                    <i class="las la-check mr-1 accent-color"></i>
+                    {{ 'logged-in' | translate }}
+                </div>
+            }
+            @if (this.lastfmSignInState !== signInStateEnum.SignedIn) {
+                <div class="d-flex flex-row align-items-center">
+                    <div class="secondary-text">{{ 'logged-out' | translate }}</div>
+                </div>
+            }
         </div>
     </div>
     <mat-divider class="my-4"></mat-divider>
@@ -74,13 +78,17 @@
             <app-accent-button class="mr-3" (click)="this.signInToListenbrainzAsync()">
                 {{ 'log-in' | translate }}
             </app-accent-button>
-            <div class="d-flex flex-row align-items-center" *ngIf="this.listenbrainzSignInState === signInStateEnum.SignedIn">
-                <i class="las la-check mr-1 accent-color"></i>
-                {{ 'logged-in' | translate }}
-            </div>
-            <div class="d-flex flex-row align-items-center" *ngIf="this.listenbrainzSignInState !== signInStateEnum.SignedIn">
-                <div class="secondary-text">{{ 'logged-out' | translate }}</div>
-            </div>
+            @if (this.listenbrainzSignInState === signInStateEnum.SignedIn) {
+                <div class="d-flex flex-row align-items-center">
+                    <i class="las la-check mr-1 accent-color"></i>
+                    {{ 'logged-in' | translate }}
+                </div>
+            }
+            @if (this.listenbrainzSignInState !== signInStateEnum.SignedIn) {
+                <div class="d-flex flex-row align-items-center">
+                    <div class="secondary-text">{{ 'logged-out' | translate }}</div>
+                </div>
+            }
         </div>
     </div>
 </div>

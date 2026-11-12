@@ -31,12 +31,13 @@
                 </div>
             </div>
             <div class="app-playlist__information ellipsis" matTooltip="{{ playlist.name }}">
-                <i class="las la-sync mr-1 accent-color" *ngIf="playlist.isSmartPlaylist"></i
-                ><i
-                    class="las la-history mr-1 accent-color"
-                    *ngIf="this.playlistSessionService.hasSession(playlist.path)"
-                    matTooltip="{{ 'playlist-session-available' | translate }}"
-                ></i>{{ playlist.name }}
+                @if (playlist.isSmartPlaylist) {
+                    <i class="las la-sync mr-1 accent-color"></i>
+                }
+                @if (this.playlistSessionService.hasSession(playlist.path)) {
+                    <i class="las la-history mr-1 accent-color" matTooltip="{{ 'playlist-session-available' | translate }}"></i>
+                }
+                {{ playlist.name }}
             </div>
         </div>
     </div>

@@ -1,8 +1,12 @@
 <div class="window-frame">
     <div class="window-frame__titlebar">
-        <div *ngIf="appearanceService.needsTrafficLightMargin" class="window-frame__trafficlights"></div>
+        @if (appearanceService.needsTrafficLightMargin) {
+            <div class="window-frame__trafficlights"></div>
+        }
         <div class="window-frame__dragarea"></div>
-        <app-window-controls *ngIf="appearanceService.needsCustomWindowControls"></app-window-controls>
+        @if (appearanceService.needsCustomWindowControls) {
+            <app-window-controls></app-window-controls>
+        }
     </div>
     <div class="window-frame__content">
         <div class="loading-component">
