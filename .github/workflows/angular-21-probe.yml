@@ -147,7 +147,7 @@ jobs:
           const malformed='argumentsReceivedMock.next(undefined);';
           if(test.split(malformed).length!==2)throw new Error('Unexpected malformed-payload regression test');
           test=test.replace(malformed,
-            '// Intentional malformed payload: verify resilience despite the typed event contract.\\n            argumentsReceivedMock.next(undefined as unknown as string[]);');
+            '// Intentional malformed payload: verify resilience despite the typed event contract.\n            argumentsReceivedMock.next(undefined as unknown as string[]);');
           fs.writeFileSync(testPath,test);
           NODE
 
