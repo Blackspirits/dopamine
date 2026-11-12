@@ -145,6 +145,13 @@ jobs:
           if(text.split(previous).length!==2)throw new Error('Unexpected event listener source');
           text=text.replace(previous,'this.argumentsReceived.next(argv ?? []);');
           fs.writeFileSync(target,text);
+          const testPath='src/app/services/file/file.service.spec.ts';
+          let test=fs.readFileSync(testPath,'utf8');
+          const malformed='argumentsReceivedMock.next(undefined);';
+          if(test.split(malformed).length!==2)throw new Error('Unexpected malformed-payload regression test');
+          test=test.replace(malformed,
+            '// Intentional malformed payload: verify resilience despite the typed event contract.\n            argumentsReceivedMock.next(undefined as unknown as string[]);');
+          fs.writeFileSync(testPath,test);
           NODE
 
       - name: Ensure reproducible lockfile before testing
@@ -173,7 +180,7 @@ jobs:
             if(lock.packages[''].devDependencies[key]!==actual)throw new Error('Lockfile mismatch '+key);
           }
           const files=execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
-          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts']);
+          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts','src/app/services/file/file.service.spec.ts']);
           const allowed=(f)=>exact.has(f)||/^src\/app\/.+\.html$/.test(f);
           const unexpected=files.filter(f=>!allowed(f));
           if(unexpected.length)throw new Error('Unexpected generated migration changes: '+JSON.stringify(unexpected));
@@ -234,7 +241,7 @@ jobs:
           const patch=fs.readFileSync('.tmp/angular21.patch','utf8');
           const matches=[...patch.matchAll(/^diff --git a\/([^\n]+) b\/([^\n]+)$/gm)];
           if(matches.length<65 || matches.length>95)throw new Error('Unexpected patch file count: '+matches.length);
-          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts']);
+          const exact=new Set(['package.json','package-lock.json','angular.json','tsconfig.base.json','tsconfig.spec.json','src/main.ts','src/app/common/api/lyrics/a-z-lyrics.api.ts','src/app/common/api/lyrics/chart-lyrics.api.ts','src/app/services/event-listener/event-listener.service.ts','src/app/services/file/file.service.spec.ts']);
           for(const m of matches){
             if(m[1]!==m[2] || !(exact.has(m[1])||/^src\/app\/.+\.html$/.test(m[1])))throw new Error('Unexpected patch path: '+m[1]);
           }
