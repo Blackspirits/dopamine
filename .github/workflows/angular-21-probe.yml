@@ -119,6 +119,31 @@ jobs:
           fs.writeFileSync(spec,original.replace(anchor,anchor+'\n        "moduleResolution": "node",'));
           NODE
 
+      - name: Preserve RxJS 7 response and event payload contracts in runner only
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = [
+            'src/app/common/api/lyrics/a-z-lyrics.api.ts',
+            'src/app/common/api/lyrics/chart-lyrics.api.ts',
+          ];
+          for(const path of paths){
+            let text = fs.readFileSync(path, 'utf8');
+            const importLine = "import { HttpClient } from '@angular/common/http';";
+            const source = "const response: string = await this.httpClient.get(url, { responseType: 'text' }).toPromise();";
+            const replacement = "const response: string = await firstValueFrom(this.httpClient.get(url, { responseType: 'text' }));";
+            if(text.split(importLine).length!==2 || text.split(source).length!==2)throw new Error('Unrecognised lyrics API source: '+path);
+            text = text.replace(importLine, importLine+"\nimport { firstValueFrom } from 'rxjs';").replace(source,replacement);
+            fs.writeFileSync(path,text);
+          }
+          const target = 'src/app/services/event-listener/event-listener.service.ts';
+          let text = fs.readFileSync(target,'utf8');
+          const previous='this.argumentsReceived.next(argv);';
+          if(text.split(previous).length!==2)throw new Error('Unexpected event listener source');
+          text=text.replace(previous,'this.argumentsReceived.next(argv ?? []);');
+          fs.writeFileSync(target,text);
+          NODE
+
       - name: Ensure reproducible lockfile before testing
         env:
           npm_config_ignore_scripts: 'true'
