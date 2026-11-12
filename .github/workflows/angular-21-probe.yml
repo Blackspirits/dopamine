@@ -101,6 +101,24 @@ jobs:
           npx ng update @angular/material --migrate-only --from 20.2.14 --to "$MATERIAL_TARGET" --allow-dirty
           git diff --stat
 
+      - name: Use modern TypeScript bundler module resolution for Angular 21, preserving Node resolution for Jest
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const base='tsconfig.base.json';
+          const p=JSON.parse(fs.readFileSync(base,'utf8'));
+          if(p.compilerOptions.moduleResolution!=='node'){
+            throw new Error('Unexpected baseline moduleResolution: '+p.compilerOptions.moduleResolution);
+          }
+          p.compilerOptions.moduleResolution='bundler';
+          fs.writeFileSync(base,JSON.stringify(p,null,4)+'\n');
+          const spec='tsconfig.spec.json';
+          const original=fs.readFileSync(spec,'utf8');
+          const anchor='"outDir": "./out-tsc/spec",';
+          if(original.split(anchor).length!==2)throw new Error('Unexpected Jest tsconfig format');
+          fs.writeFileSync(spec,original.replace(anchor,anchor+'\n        "moduleResolution": "node",'));
+          NODE
+
       - name: Ensure reproducible lockfile before testing
         env:
           npm_config_ignore_scripts: 'true'
