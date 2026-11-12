@@ -1,0 +1,4 @@
+Execute gated Angular 21 migration staging on this isolated feature branch.
+Source baseline: a16629da762c433c5e779524f6cf3abb69f021e0
+Verified disposable probe: https://github.com/Blackspirits/dopamine/actions/runs/43300391342
+Only publish tested patch to this feature branch; never master or upstream.
