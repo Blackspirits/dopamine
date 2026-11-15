@@ -137,6 +137,9 @@ jobs:
           const original='    private _isReady: boolean;';
           if(discord.split(original).length!==2)throw new Error('Unexpected DiscordApi initialization contract');
           discord=discord.replace(original,'    private _isReady: boolean = false;');
+          const unassigned='    private _client: Client;';
+          if(discord.split(unassigned).length!==2)throw new Error('Unexpected Discord client declaration');
+          discord=discord.replace(unassigned,'    private _client!: Client;'); // Instantiated in reconnect() before login().
           fs.writeFileSync(discordPath,discord);
           NODE
 
