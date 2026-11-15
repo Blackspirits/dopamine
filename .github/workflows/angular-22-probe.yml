@@ -143,6 +143,22 @@ jobs:
           fs.writeFileSync(discordPath,discord);
           NODE
 
+      - name: Preserve pre-TypeScript 6 effective strictness without suppressing explicit null checks
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const file='tsconfig.base.json';
+          const config=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(config.compilerOptions.strict !== undefined ||
+             config.compilerOptions.strictNullChecks!==true){
+             throw new Error('Unexpected existing TypeScript strictness settings');
+          }
+          // TypeScript 6 defaults strict=true; previous toolchain defaulted to false.
+          // Preserve existing effective settings for this compatibility migration.
+          config.compilerOptions.strict=false;
+          fs.writeFileSync(file,JSON.stringify(config,null,4)+'\n');
+          NODE
+
       - name: Reinstall reproducibly from generated lockfile
         env:
           npm_config_ignore_scripts: 'true'
