@@ -70,6 +70,7 @@ jobs:
             eslint:'^10.12.0',
             '@typescript-eslint/eslint-plugin':'^8.72.2',
             '@typescript-eslint/parser':'^8.72.2',
+            '@types/discord-rpc':'4.0.11',
           });
           let count=0;
           for(const key of Object.keys(p.devDependencies)){
@@ -119,6 +120,24 @@ jobs:
           p.compilerOptions.module='Node16';
           p.compilerOptions.moduleResolution='node16';
           fs.writeFileSync(path,JSON.stringify(p,null,4)+'\n');
+          NODE
+
+      - name: Apply reviewed TypeScript 6 error handling and Discord readiness fixes in runner only
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const path='main.ts';
+          let text=fs.readFileSync(path,'utf8');
+          const old='Error: ${e.message}';
+          if(text.split(old).length!==3)throw new Error('Expected exactly two unguarded catch errors in main.ts');
+          text=text.replaceAll(old,"Error: ${e instanceof Error ? e.message : String(e)}");
+          fs.writeFileSync(path,text);
+          const discordPath='main/api/discord/discord-api.ts';
+          let discord=fs.readFileSync(discordPath,'utf8');
+          const original='    private _isReady: boolean;';
+          if(discord.split(original).length!==2)throw new Error('Unexpected DiscordApi initialization contract');
+          discord=discord.replace(original,'    private _isReady: boolean = false;');
+          fs.writeFileSync(discordPath,discord);
           NODE
 
       - name: Reinstall reproducibly from generated lockfile
