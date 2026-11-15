@@ -159,6 +159,35 @@ jobs:
           fs.writeFileSync(file,JSON.stringify(config,null,4)+'\n');
           NODE
 
+      - name: Resolve TypeScript 6 deprecations and Angular diagnostics compatibility without disabling templates
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const file='tsconfig.app.json';
+          const ts=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(ts.compilerOptions?.baseUrl!=='' &&
+             ts.compilerOptions?.baseUrl!==undefined)throw new Error('Unexpected baseUrl; review aliases before removal');
+          delete ts.compilerOptions.baseUrl;
+          // Angular 22 optional extendedDiagnostics cannot run with strictTemplates disabled.
+          // Only remove optional diagnostics in the non-strict template compilation configuration.
+          for(const path of ['tsconfig.app.json','tsconfig.json','tsconfig.base.json']){
+            const config=path===file?ts:JSON.parse(fs.readFileSync(path,'utf8'));
+            const opts=config.angularCompilerOptions;
+            if(opts?.extendedDiagnostics && opts.strictTemplates!==true){
+              delete opts.extendedDiagnostics;
+              console.log('Removed invalid extendedDiagnostics from',path);
+            }
+            fs.writeFileSync(path,JSON.stringify(config,null,4)+'\n');
+          }
+          const source='src/app/common/io/file-access.ts';
+          let text=fs.readFileSync(source,'utf8');
+          const before="import * as events from 'events';";
+          const call="await events.once(readlineInterface, 'close');";
+          if(text.split(before).length!==2 || text.split(call).length!==2)throw new Error('Unexpected event utility usage');
+          text=text.replace(before,"import { once } from 'node:events';").replace(call,"await once(readlineInterface, 'close');");
+          fs.writeFileSync(source,text);
+          NODE
+
       - name: Reinstall reproducibly from generated lockfile
         env:
           npm_config_ignore_scripts: 'true'
