@@ -3,3 +3,4 @@ No changes to master or upstream.
 Retry after TS6 diagnostics: typed Discord client and safe caught errors.
 Retry after TS2564 _client definite assignment fix.
 Retry with TS6 explicit legacy strictness, preserving strictNullChecks.
+Retry TS6 baseUrl, Angular extended diagnostics and node events.once compatibility.
