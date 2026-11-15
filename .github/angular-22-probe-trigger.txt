@@ -1,3 +1,4 @@
 Run the existing Angular 22 compatibility workflow against the validated Angular 21 feature branch snapshot.
 No changes to master or upstream.
 Retry after TS6 diagnostics: typed Discord client and safe caught errors.
+Retry after TS2564 _client definite assignment fix.
